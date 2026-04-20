@@ -449,7 +449,7 @@ export function SettingsPage() {
       </section>
 
       <footer className="settings-footer">
-        <p>Made with &lt;3 by DJ MoneyKey</p>
+        <p>Made with ❤️ in Montreal by DJMoneykey</p>
       </footer>
     </main>
   );
