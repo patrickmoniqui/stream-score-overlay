@@ -14,6 +14,7 @@ import {
   fetchTwitchGateStatus,
   type TwitchGateStatus,
 } from '../lib/twitchGate';
+import { findPreviousFinalGame } from '../lib/gameSelection';
 import { useOverlayData } from '../lib/useOverlayData';
 import { buildOverlayUrl, parseConfig } from '../lib/urlState';
 import type { OverlayConfig } from '../lib/types';
@@ -23,12 +24,18 @@ export function SettingsPage() {
   const [config, setConfig] = useState<OverlayConfig>(() =>
     parseConfig(window.location.search),
   );
+  const [developerMode, setDeveloperMode] = useState(false);
+  const [previewGoalFlash, setPreviewGoalFlash] = useState<{
+    key: number;
+    alignment: 'away' | 'home';
+  } | null>(null);
   const [copied, setCopied] = useState(false);
   const [twitchGateStatus, setTwitchGateStatus] = useState<TwitchGateStatus | null>(
     null,
   );
   const [twitchGateError, setTwitchGateError] = useState<string | null>(null);
   const { data, error, loading } = useOverlayData(config);
+  const previousGame = findPreviousFinalGame(data.selectedGame, data.games);
   const selectedStyle =
     OVERLAY_STYLE_OPTIONS.find((option) => option.value === config.style) ??
     OVERLAY_STYLE_OPTIONS[0];
@@ -95,6 +102,13 @@ export function SettingsPage() {
   async function copyUrl() {
     await navigator.clipboard.writeText(buildOverlayUrl(config));
     setCopied(true);
+  }
+
+  function triggerPreviewGoal(alignment: 'away' | 'home') {
+    setPreviewGoalFlash({
+      key: Date.now(),
+      alignment,
+    });
   }
 
   return (
@@ -252,6 +266,15 @@ export function SettingsPage() {
             <span>Reveal creator credit</span>
           </label>
 
+          <label className="toggle">
+            <input
+              type="checkbox"
+              checked={developerMode}
+              onChange={(event) => setDeveloperMode(event.target.checked)}
+            />
+            <span>Developer mode</span>
+          </label>
+
           <div className="field">
             <span>Overlay URL</span>
             <textarea readOnly value={buildOverlayUrl(config)} rows={4} />
@@ -302,13 +325,42 @@ export function SettingsPage() {
           <div className="preview-frame">
             <ScoreboardCard
               game={data.selectedGame}
+              previousGame={previousGame}
               showClock={config.showClock}
               style={config.style}
               layout={config.layout}
               showCredit={config.showCredit}
+              debugGoalFlash={previewGoalFlash}
               emptyLabel="No game scheduled for this selection"
             />
           </div>
+          {developerMode ? (
+            <div className="developer-card">
+              <p className="developer-label">Developer Mode</p>
+              <p className="developer-copy">
+                Preview-only controls for testing overlays without waiting for a
+                real score change. These do not affect the shared overlay URL.
+              </p>
+              <div className="developer-actions">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => triggerPreviewGoal('away')}
+                  disabled={!data.selectedGame}
+                >
+                  Test {data.selectedGame?.awayTeam.abbrev ?? 'Away'} Goal
+                </button>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => triggerPreviewGoal('home')}
+                  disabled={!data.selectedGame}
+                >
+                  Test {data.selectedGame?.homeTeam.abbrev ?? 'Home'} Goal
+                </button>
+              </div>
+            </div>
+          ) : null}
           <p className="helper-text">
             Default mode follows the schedule automatically. Leave team on
             Auto to always surface the best current or next game.

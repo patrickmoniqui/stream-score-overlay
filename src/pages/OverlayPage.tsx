@@ -4,12 +4,14 @@ import { useOverlayData } from '../lib/useOverlayData';
 import { ScoreboardCard } from '../components/ScoreboardCard';
 import { isTwitchGateEnabled } from '../lib/features';
 import { verifyTwitchGateToken } from '../lib/twitchGate';
+import { findPreviousFinalGame } from '../lib/gameSelection';
 
 export function OverlayPage() {
   const config = useMemo(() => parseConfig(window.location.search), []);
   const twitchGateEnabled = isTwitchGateEnabled();
   const [unlockVerified, setUnlockVerified] = useState(!twitchGateEnabled);
   const { data, error } = useOverlayData(config);
+  const previousGame = findPreviousFinalGame(data.selectedGame, data.games);
 
   useEffect(() => {
     if (!twitchGateEnabled || config.showCredit) {
@@ -47,6 +49,7 @@ export function OverlayPage() {
       ) : (
         <ScoreboardCard
           game={data.selectedGame}
+          previousGame={previousGame}
           showClock={config.showClock}
           style={config.style}
           layout={config.layout}

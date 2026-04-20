@@ -66,6 +66,13 @@ export function isFinalGame(game: NhlGame): boolean {
   return FINAL_STATES.has(game.gameState);
 }
 
+function isSameMatchup(a: NhlGame, b: NhlGame): boolean {
+  const aTeamIds = [a.awayTeam.id, a.homeTeam.id].sort((left, right) => left - right);
+  const bTeamIds = [b.awayTeam.id, b.homeTeam.id].sort((left, right) => left - right);
+
+  return aTeamIds[0] === bTeamIds[0] && aTeamIds[1] === bTeamIds[1];
+}
+
 function getStartMs(game: NhlGame): number {
   return new Date(game.startTimeUTC).getTime();
 }
@@ -152,3 +159,23 @@ export function getRefreshInterval(game: NhlGame | null): number {
   return 60_000;
 }
 
+export function findPreviousFinalGame(
+  game: NhlGame | null,
+  games: NhlGame[],
+): NhlGame | null {
+  if (!game) {
+    return null;
+  }
+
+  return (
+    games
+      .filter(
+        (candidate) =>
+          candidate.id !== game.id &&
+          isFinalGame(candidate) &&
+          isSameMatchup(candidate, game) &&
+          getStartMs(candidate) < getStartMs(game),
+      )
+      .sort(compareDescending)[0] ?? null
+  );
+}

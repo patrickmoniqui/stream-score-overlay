@@ -44,12 +44,32 @@ export function formatStartTime(isoTime: string): string {
   }).format(new Date(isoTime));
 }
 
+export function formatGameDate(isoTime: string): string {
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+  }).format(new Date(isoTime));
+}
+
 export function formatGameLabel(game: NhlGame): string {
   const away = game.awayTeam.abbrev;
   const home = game.homeTeam.abbrev;
   const startTime = formatStartTime(game.startTimeUTC);
 
   return `${away} @ ${home} · ${startTime}`;
+}
+
+function formatPreviousResult(previousGame: NhlGame): string | null {
+  const awayScore = previousGame.awayTeam.score;
+  const homeScore = previousGame.homeTeam.score;
+
+  if (awayScore === undefined || homeScore === undefined) {
+    return null;
+  }
+
+  const gameDate = formatGameDate(previousGame.startTimeUTC);
+
+  return `${gameDate} • ${previousGame.awayTeam.abbrev} ${awayScore}-${homeScore} ${previousGame.homeTeam.abbrev}`;
 }
 
 export function getStatusBadge(game: NhlGame): string {
@@ -70,7 +90,11 @@ export function getStatusBadge(game: NhlGame): string {
   return 'UP NEXT';
 }
 
-export function getStatusDetail(game: NhlGame, showClock: boolean): string {
+export function getStatusDetail(
+  game: NhlGame,
+  showClock: boolean,
+  previousGame?: NhlGame | null,
+): string {
   if (isLiveGame(game)) {
     const clock = game.clock;
     const period = formatPeriodLabel(game);
@@ -96,6 +120,12 @@ export function getStatusDetail(game: NhlGame, showClock: boolean): string {
     }
 
     return 'REGULATION';
+  }
+
+  const previousResult = previousGame ? formatPreviousResult(previousGame) : null;
+
+  if (previousResult) {
+    return previousResult;
   }
 
   return formatStartTime(game.startTimeUTC);

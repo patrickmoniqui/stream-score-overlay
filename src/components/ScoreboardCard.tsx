@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   CREDIT_LABEL,
   CREDIT_NAME,
@@ -10,7 +10,7 @@ import {
   getStatusBadge,
   getStatusDetail,
 } from '../lib/format';
-import { isFinalGame, isLiveGame } from '../lib/gameSelection';
+import { isFinalGame, isLiveGame, isUpcomingGame } from '../lib/gameSelection';
 import type {
   NhlGame,
   OverlayLayout,
@@ -20,12 +20,26 @@ import type {
 
 interface ScoreboardCardProps {
   game: NhlGame | null;
+  previousGame?: NhlGame | null;
   showClock: boolean;
   style: OverlayStyle;
   layout: OverlayLayout;
   showCredit: boolean;
+  debugGoalFlash?: {
+    key: number;
+    alignment: 'away' | 'home';
+  } | null;
   className?: string;
   emptyLabel?: string;
+}
+
+const GOAL_FLASH_DURATION_MS = 15_000;
+const UPCOMING_DETAIL_ROTATION_MS = 10_000;
+
+interface GoalFlashState {
+  key: number;
+  team: TeamRecord;
+  alignment: 'away' | 'home';
 }
 
 function getTeamName(team: TeamRecord): string {
@@ -148,9 +162,38 @@ function TwitchIcon() {
   );
 }
 
-function getCompactMetaText(game: NhlGame, showClock: boolean): string {
+function GoalFlash({
+  goalFlash,
+}: {
+  goalFlash: GoalFlashState;
+}) {
+  const logo = getTeamLogo(goalFlash.team);
+
+  return (
+    <div className={`goal-flash goal-flash-${goalFlash.alignment}`}>
+      <div className="goal-flash-content">
+        <div className="goal-flash-kicker">GOAL!</div>
+        <div className="goal-flash-team">
+          {logo ? (
+            <img
+              src={logo}
+              alt={`${goalFlash.team.abbrev} logo`}
+              className="goal-flash-logo"
+            />
+          ) : (
+            <span className="goal-flash-logo-fallback">
+              {goalFlash.team.abbrev}
+            </span>
+          )}
+          <span className="goal-flash-abbrev">{goalFlash.team.abbrev}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function getCompactMetaText(game: NhlGame, detail: string): string {
   const badge = getStatusBadge(game);
-  const detail = getStatusDetail(game, showClock);
 
   if (badge === 'FINAL') {
     return detail === 'REGULATION' ? 'FINAL' : `FINAL ${detail}`;
@@ -201,16 +244,140 @@ function useCreditReveal(enabled: boolean): boolean {
   return enabled && isVisible;
 }
 
+function useDisplayedStatusDetail(
+  game: NhlGame | null,
+  showClock: boolean,
+  previousGame: NhlGame | null,
+): string {
+  const [showPreviousResult, setShowPreviousResult] = useState(true);
+
+  useEffect(() => {
+    if (!game || !previousGame || !isUpcomingGame(game)) {
+      setShowPreviousResult(true);
+      return;
+    }
+
+    setShowPreviousResult(true);
+
+    const intervalId = window.setInterval(() => {
+      setShowPreviousResult((current) => !current);
+    }, UPCOMING_DETAIL_ROTATION_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, [game, previousGame]);
+
+  if (!game) {
+    return '';
+  }
+
+  if (!previousGame || !isUpcomingGame(game)) {
+    return getStatusDetail(game, showClock, previousGame);
+  }
+
+  return showPreviousResult
+    ? getStatusDetail(game, showClock, previousGame)
+    : getStatusDetail(game, showClock);
+}
+
+function useGoalFlash(game: NhlGame | null): GoalFlashState | null {
+  const [goalFlash, setGoalFlash] = useState<GoalFlashState | null>(null);
+  const previousGameRef = useRef<NhlGame | null>(null);
+
+  useEffect(() => {
+    const previousGame = previousGameRef.current;
+
+    if (!game) {
+      previousGameRef.current = null;
+      return;
+    }
+
+    if (previousGame && previousGame.id === game.id && isLiveGame(game)) {
+      const previousAwayScore = previousGame.awayTeam.score ?? 0;
+      const previousHomeScore = previousGame.homeTeam.score ?? 0;
+      const nextAwayScore = game.awayTeam.score ?? 0;
+      const nextHomeScore = game.homeTeam.score ?? 0;
+      const awayIncrease = nextAwayScore - previousAwayScore;
+      const homeIncrease = nextHomeScore - previousHomeScore;
+
+      if (awayIncrease > 0 && homeIncrease <= 0) {
+        setGoalFlash({
+          key: Date.now(),
+          team: game.awayTeam,
+          alignment: 'away',
+        });
+      } else if (homeIncrease > 0 && awayIncrease <= 0) {
+        setGoalFlash({
+          key: Date.now(),
+          team: game.homeTeam,
+          alignment: 'home',
+        });
+      }
+    }
+
+    previousGameRef.current = game;
+  }, [game]);
+
+  useEffect(() => {
+    if (!goalFlash) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setGoalFlash((currentGoalFlash) =>
+        currentGoalFlash?.key === goalFlash.key ? null : currentGoalFlash,
+      );
+    }, GOAL_FLASH_DURATION_MS);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [goalFlash]);
+
+  return goalFlash;
+}
+
 export function ScoreboardCard({
   game,
+  previousGame = null,
   showClock,
   style,
   layout,
   showCredit,
+  debugGoalFlash = null,
   className,
   emptyLabel = 'No game scheduled',
 }: ScoreboardCardProps) {
   const showCreditReveal = useCreditReveal(showCredit);
+  const goalFlash = useGoalFlash(game);
+  const statusDetail = useDisplayedStatusDetail(game, showClock, previousGame);
+  const [manualGoalFlash, setManualGoalFlash] = useState<GoalFlashState | null>(null);
+
+  useEffect(() => {
+    if (!game || !debugGoalFlash) {
+      return;
+    }
+
+    setManualGoalFlash({
+      key: debugGoalFlash.key,
+      team:
+        debugGoalFlash.alignment === 'away' ? game.awayTeam : game.homeTeam,
+      alignment: debugGoalFlash.alignment,
+    });
+  }, [debugGoalFlash, game]);
+
+  useEffect(() => {
+    if (!manualGoalFlash) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setManualGoalFlash((currentGoalFlash) =>
+        currentGoalFlash?.key === manualGoalFlash.key ? null : currentGoalFlash,
+      );
+    }, GOAL_FLASH_DURATION_MS);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [manualGoalFlash]);
+
+  const activeGoalFlash = manualGoalFlash ?? goalFlash;
 
   if (!game) {
     return (
@@ -223,6 +390,7 @@ export function ScoreboardCard({
         {showCreditReveal ? (
           <div className="scoreboard-empty-credit">{CREDIT_LABEL}</div>
         ) : null}
+        {activeGoalFlash ? <GoalFlash key={activeGoalFlash.key} goalFlash={activeGoalFlash} /> : null}
       </div>
     );
   }
@@ -247,7 +415,7 @@ export function ScoreboardCard({
             />
             <div className="compact-meta">
               <div className="compact-meta-detail">
-                {getCompactMetaText(game, showClock)}
+                {getCompactMetaText(game, statusDetail)}
               </div>
             </div>
             <CompactTeam
@@ -273,7 +441,7 @@ export function ScoreboardCard({
               {getStatusBadge(game)}
             </div>
             <div className="status-rail" />
-            <div className="status-detail">{getStatusDetail(game, showClock)}</div>
+            <div className="status-detail">{statusDetail}</div>
           </div>
           <div className="scoreboard-main">
             <TeamRow
@@ -296,6 +464,9 @@ export function ScoreboardCard({
           ) : null}
         </>
       )}
+      {activeGoalFlash ? (
+        <GoalFlash key={activeGoalFlash.key} goalFlash={activeGoalFlash} />
+      ) : null}
     </div>
   );
 }
