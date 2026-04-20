@@ -8,6 +8,8 @@ const SESSION_COOKIE_NAME = 'twitch_gate_session';
 const OAUTH_STATE_COOKIE_NAME = 'twitch_oauth_state';
 
 interface Env {
+  ANALYTICS_DB?: D1Database;
+  ANALYTICS_READ_TOKEN?: string;
   TWITCH_GATE_ENABLED?: string;
   TWITCH_ALLOWED_ORIGIN?: string;
   TWITCH_BROADCASTER_ID?: string;
@@ -56,6 +58,54 @@ interface OAuthStatePayload {
   returnTo: string;
 }
 
+interface AnalyticsEventPayload {
+  appVersion?: unknown;
+  buildNumber?: unknown;
+  eventType?: unknown;
+  installId?: unknown;
+  pathname?: unknown;
+  settings?: unknown;
+}
+
+interface AnalyticsSettingsPayload {
+  hasUnlock?: unknown;
+  layout?: unknown;
+  mode?: unknown;
+  playoffsOnly?: unknown;
+  refreshSeconds?: unknown;
+  showClock?: unknown;
+  style?: unknown;
+  teamCount?: unknown;
+  teamsKey?: unknown;
+}
+
+interface AnalyticsEventRecord {
+  appVersion: string | null;
+  buildNumber: string | null;
+  eventType: string;
+  hasUnlock: number;
+  installId: string;
+  layout: string;
+  mode: string;
+  pathname: string;
+  playoffsOnly: number;
+  recordedAt: number;
+  refreshSeconds: number;
+  showClock: number;
+  style: string;
+  teamCount: number;
+  teamsKey: string;
+}
+
+const ANALYTICS_EVENT_TYPES = new Set([
+  'settings_opened',
+  'overlay_link_copied',
+  'overlay_loaded',
+]);
+const ANALYTICS_LAYOUTS = new Set(['compact', 'stacked']);
+const ANALYTICS_MODES = new Set(['auto', 'manual']);
+const ANALYTICS_STYLES = new Set(['broadcast', 'classic', 'minimal', 'arena']);
+
 function buildPublicCorsHeaders(): Headers {
   const headers = new Headers();
   headers.set('Access-Control-Allow-Origin', '*');
@@ -81,6 +131,13 @@ function buildAuthCorsHeaders(request: Request, env: Env): Headers {
   return headers;
 }
 
+function buildAnalyticsCorsHeaders(): Headers {
+  const headers = buildPublicCorsHeaders();
+  headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  headers.set('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+  return headers;
+}
+
 function jsonResponse(
   body: unknown,
   headers: Headers,
@@ -98,9 +155,169 @@ function isTwitchGateEnabled(env: Env): boolean {
   return env.TWITCH_GATE_ENABLED === 'true';
 }
 
+function getAnalyticsDb(env: Env): D1Database | null {
+  return env.ANALYTICS_DB ?? null;
+}
+
 function getSessionTtlSeconds(env: Env): number {
   const rawValue = Number(env.TWITCH_SESSION_TTL_SECONDS ?? '86400');
   return Number.isFinite(rawValue) && rawValue > 0 ? rawValue : 86_400;
+}
+
+function getAllowedString(value: unknown, allowedValues: Set<string>): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalized = value.trim();
+
+  if (!normalized || !allowedValues.has(normalized)) {
+    return null;
+  }
+
+  return normalized;
+}
+
+function getOptionalString(
+  value: unknown,
+  fallback: string | null,
+  maxLength: number,
+): string | null {
+  if (typeof value !== 'string') {
+    return fallback;
+  }
+
+  const normalized = value.trim();
+
+  if (!normalized) {
+    return fallback;
+  }
+
+  return normalized.slice(0, maxLength);
+}
+
+function getBooleanFlag(value: unknown): number {
+  return value === true || value === 1 || value === '1' ? 1 : 0;
+}
+
+function getInteger(
+  value: unknown,
+  fallback: number,
+  minimum: number,
+  maximum: number,
+): number {
+  const numericValue = Number(value);
+
+  if (!Number.isFinite(numericValue)) {
+    return fallback;
+  }
+
+  return Math.max(minimum, Math.min(maximum, Math.round(numericValue)));
+}
+
+function getCount(value: unknown): number {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : 0;
+}
+
+function getBearerToken(request: Request): string | null {
+  const authorizationHeader = request.headers.get('Authorization');
+
+  if (!authorizationHeader?.startsWith('Bearer ')) {
+    return null;
+  }
+
+  const token = authorizationHeader.slice('Bearer '.length).trim();
+  return token || null;
+}
+
+function buildLatestAnalyticsBreakdownQuery(columnName: string): string {
+  return `
+    WITH latest_configs AS (
+      SELECT
+        install_id,
+        mode,
+        style,
+        layout,
+        refresh_seconds,
+        playoffs_only,
+        show_clock,
+        team_count,
+        teams_key,
+        pathname,
+        ROW_NUMBER() OVER (
+          PARTITION BY install_id
+          ORDER BY recorded_at DESC, id DESC
+        ) AS row_number
+      FROM analytics_events
+      WHERE recorded_at >= ?
+    )
+    SELECT ${columnName} AS value, COUNT(*) AS count
+    FROM latest_configs
+    WHERE row_number = 1
+    GROUP BY ${columnName}
+    ORDER BY count DESC, value ASC
+  `;
+}
+
+function parseAnalyticsEventRecord(payload: unknown): AnalyticsEventRecord | null {
+  if (!payload || typeof payload !== 'object') {
+    return null;
+  }
+
+  const eventPayload = payload as AnalyticsEventPayload;
+  const settings =
+    eventPayload.settings && typeof eventPayload.settings === 'object'
+      ? (eventPayload.settings as AnalyticsSettingsPayload)
+      : {};
+  const eventType = getAllowedString(
+    eventPayload.eventType,
+    ANALYTICS_EVENT_TYPES,
+  );
+  const installId = getOptionalString(eventPayload.installId, null, 128);
+
+  if (!eventType || !installId) {
+    return null;
+  }
+
+  return {
+    appVersion: getOptionalString(eventPayload.appVersion, null, 32),
+    buildNumber: getOptionalString(eventPayload.buildNumber, null, 32),
+    eventType,
+    hasUnlock: getBooleanFlag(settings.hasUnlock),
+    installId,
+    layout:
+      getAllowedString(settings.layout, ANALYTICS_LAYOUTS) ?? 'compact',
+    mode: getAllowedString(settings.mode, ANALYTICS_MODES) ?? 'auto',
+    pathname: getOptionalString(eventPayload.pathname, '/', 120) ?? '/',
+    playoffsOnly: getBooleanFlag(settings.playoffsOnly),
+    recordedAt: Date.now(),
+    refreshSeconds: getInteger(settings.refreshSeconds, 10, 1, 60),
+    showClock: getBooleanFlag(settings.showClock),
+    style:
+      getAllowedString(settings.style, ANALYTICS_STYLES) ?? 'broadcast',
+    teamCount: getInteger(settings.teamCount, 0, 0, 32),
+    teamsKey: getOptionalString(settings.teamsKey, 'AUTO', 120) ?? 'AUTO',
+  };
+}
+
+async function fetchAnalyticsBreakdown(
+  db: D1Database,
+  columnName: string,
+  since: number,
+): Promise<Array<{ count: number; value: string }>> {
+  const result = await db
+    .prepare(buildLatestAnalyticsBreakdownQuery(columnName))
+    .bind(since)
+    .all<Record<string, unknown>>();
+
+  return (result.results ?? []).map((row) => ({
+    count: getCount(row.count),
+    value:
+      row.value === null || typeof row.value === 'undefined'
+        ? 'Unknown'
+        : String(row.value),
+  }));
 }
 
 function buildCacheTtl(pathname: string): number {
@@ -416,6 +633,303 @@ async function createOverlayGrant(
   } satisfies TwitchGateGrant;
 
   return createSignedToken(grant, secret);
+}
+
+async function handleAnalyticsEvent(
+  request: Request,
+  env: Env,
+): Promise<Response> {
+  const headers = buildAnalyticsCorsHeaders();
+  const analyticsDb = getAnalyticsDb(env);
+
+  if (request.method !== 'POST') {
+    return new Response('Method not allowed', {
+      status: 405,
+      headers,
+    });
+  }
+
+  if (!analyticsDb) {
+    return jsonResponse(
+      {
+        enabled: false,
+        stored: false,
+      },
+      headers,
+      202,
+    );
+  }
+
+  let payload: unknown;
+
+  try {
+    payload = await request.json();
+  } catch {
+    return jsonResponse(
+      {
+        error: 'Invalid analytics payload.',
+      },
+      headers,
+      400,
+    );
+  }
+
+  const analyticsEvent = parseAnalyticsEventRecord(payload);
+
+  if (!analyticsEvent) {
+    return jsonResponse(
+      {
+        error: 'Invalid analytics event.',
+      },
+      headers,
+      400,
+    );
+  }
+
+  try {
+    await analyticsDb
+      .prepare(
+        `
+          INSERT INTO analytics_events (
+            recorded_at,
+            event_type,
+            install_id,
+            pathname,
+            app_version,
+            build_number,
+            mode,
+            style,
+            layout,
+            refresh_seconds,
+            playoffs_only,
+            show_clock,
+            team_count,
+            teams_key,
+            has_unlock
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+      )
+      .bind(
+        analyticsEvent.recordedAt,
+        analyticsEvent.eventType,
+        analyticsEvent.installId,
+        analyticsEvent.pathname,
+        analyticsEvent.appVersion,
+        analyticsEvent.buildNumber,
+        analyticsEvent.mode,
+        analyticsEvent.style,
+        analyticsEvent.layout,
+        analyticsEvent.refreshSeconds,
+        analyticsEvent.playoffsOnly,
+        analyticsEvent.showClock,
+        analyticsEvent.teamCount,
+        analyticsEvent.teamsKey,
+        analyticsEvent.hasUnlock,
+      )
+      .run();
+  } catch {
+    return jsonResponse(
+      {
+        error: 'Analytics storage failed.',
+      },
+      headers,
+      500,
+    );
+  }
+
+  return jsonResponse(
+    {
+      enabled: true,
+      stored: true,
+    },
+    headers,
+    202,
+  );
+}
+
+async function handleAnalyticsSummary(
+  request: Request,
+  env: Env,
+): Promise<Response> {
+  const headers = buildAnalyticsCorsHeaders();
+  const analyticsDb = getAnalyticsDb(env);
+
+  if (request.method !== 'GET') {
+    return new Response('Method not allowed', {
+      status: 405,
+      headers,
+    });
+  }
+
+  if (!analyticsDb) {
+    return jsonResponse(
+      {
+        enabled: false,
+        error: 'Analytics storage is not configured.',
+      },
+      headers,
+      503,
+    );
+  }
+
+  const configuredReadToken = env.ANALYTICS_READ_TOKEN?.trim();
+
+  if (!configuredReadToken) {
+    return jsonResponse(
+      {
+        enabled: true,
+        error: 'ANALYTICS_READ_TOKEN is not configured.',
+      },
+      headers,
+      503,
+    );
+  }
+
+  if (getBearerToken(request) !== configuredReadToken) {
+    return jsonResponse(
+      {
+        error: 'Unauthorized.',
+      },
+      headers,
+      401,
+    );
+  }
+
+  const url = new URL(request.url);
+  const windowDays = getInteger(url.searchParams.get('days'), 30, 1, 365);
+  const since = Date.now() - windowDays * 86_400_000;
+
+  try {
+    const totals = await analyticsDb
+      .prepare(
+        `
+          SELECT
+            COUNT(DISTINCT install_id) AS unique_users,
+            COUNT(
+              DISTINCT CASE
+                WHEN event_type IN ('settings_opened', 'overlay_link_copied')
+                THEN install_id
+              END
+            ) AS settings_users,
+            COUNT(
+              DISTINCT CASE
+                WHEN event_type = 'overlay_loaded'
+                THEN install_id
+              END
+            ) AS overlay_users,
+            SUM(CASE WHEN event_type = 'settings_opened' THEN 1 ELSE 0 END) AS settings_views,
+            SUM(CASE WHEN event_type = 'overlay_link_copied' THEN 1 ELSE 0 END) AS overlay_link_copies,
+            SUM(CASE WHEN event_type = 'overlay_loaded' THEN 1 ELSE 0 END) AS overlay_loads
+          FROM analytics_events
+          WHERE recorded_at >= ?
+        `,
+      )
+      .bind(since)
+      .first<Record<string, unknown>>();
+    const dailyResult = await analyticsDb
+      .prepare(
+        `
+          SELECT
+            strftime('%Y-%m-%d', recorded_at / 1000, 'unixepoch') AS day,
+            COUNT(DISTINCT install_id) AS unique_users,
+            SUM(CASE WHEN event_type = 'overlay_loaded' THEN 1 ELSE 0 END) AS overlay_loads,
+            SUM(CASE WHEN event_type = 'overlay_link_copied' THEN 1 ELSE 0 END) AS overlay_link_copies
+          FROM analytics_events
+          WHERE recorded_at >= ?
+          GROUP BY day
+          ORDER BY day DESC
+        `,
+      )
+      .bind(since)
+      .all<Record<string, unknown>>();
+    const pathResult = await fetchAnalyticsBreakdown(
+      analyticsDb,
+      'pathname',
+      since,
+    );
+    const modeResult = await fetchAnalyticsBreakdown(
+      analyticsDb,
+      'mode',
+      since,
+    );
+    const styleResult = await fetchAnalyticsBreakdown(
+      analyticsDb,
+      'style',
+      since,
+    );
+    const layoutResult = await fetchAnalyticsBreakdown(
+      analyticsDb,
+      'layout',
+      since,
+    );
+    const refreshResult = await fetchAnalyticsBreakdown(
+      analyticsDb,
+      'refresh_seconds',
+      since,
+    );
+    const playoffsResult = await fetchAnalyticsBreakdown(
+      analyticsDb,
+      'playoffs_only',
+      since,
+    );
+    const clockResult = await fetchAnalyticsBreakdown(
+      analyticsDb,
+      'show_clock',
+      since,
+    );
+    const teamCountResult = await fetchAnalyticsBreakdown(
+      analyticsDb,
+      'team_count',
+      since,
+    );
+    const teamsResult = await fetchAnalyticsBreakdown(
+      analyticsDb,
+      'teams_key',
+      since,
+    );
+
+    return jsonResponse(
+      {
+        enabled: true,
+        windowDays,
+        totals: {
+          overlayLoads: getCount(totals?.overlay_loads),
+          overlayUsers: getCount(totals?.overlay_users),
+          overlayLinkCopies: getCount(totals?.overlay_link_copies),
+          settingsUsers: getCount(totals?.settings_users),
+          settingsViews: getCount(totals?.settings_views),
+          uniqueUsers: getCount(totals?.unique_users),
+        },
+        daily: (dailyResult.results ?? []).map((row) => ({
+          day: typeof row.day === 'string' ? row.day : 'unknown',
+          overlayLinkCopies: getCount(row.overlay_link_copies),
+          overlayLoads: getCount(row.overlay_loads),
+          uniqueUsers: getCount(row.unique_users),
+        })),
+        settings: {
+          layout: layoutResult,
+          mode: modeResult,
+          paths: pathResult,
+          playoffsOnly: playoffsResult,
+          refreshSeconds: refreshResult,
+          showClock: clockResult,
+          style: styleResult,
+          teamCount: teamCountResult,
+          teams: teamsResult,
+        },
+      },
+      headers,
+    );
+  } catch {
+    return jsonResponse(
+      {
+        error: 'Analytics summary failed.',
+      },
+      headers,
+      500,
+    );
+  }
 }
 
 async function proxyRequest(request: Request): Promise<Response> {
@@ -761,6 +1275,13 @@ export default {
         });
       }
 
+      if (url.pathname.startsWith('/api/analytics/')) {
+        return new Response(null, {
+          status: 204,
+          headers: buildAnalyticsCorsHeaders(),
+        });
+      }
+
       return new Response(null, {
         status: 204,
         headers: buildPublicCorsHeaders(),
@@ -785,6 +1306,14 @@ export default {
 
     if (url.pathname === '/auth/twitch/verify') {
       return handleTwitchVerify(request, env);
+    }
+
+    if (url.pathname === '/api/analytics/events') {
+      return handleAnalyticsEvent(request, env);
+    }
+
+    if (url.pathname === '/api/analytics/summary') {
+      return handleAnalyticsSummary(request, env);
     }
 
     return proxyRequest(request);

@@ -23,6 +23,7 @@ interface ScoreboardCardProps {
   game: NhlGame | null;
   previousGame?: NhlGame | null;
   showClock: boolean;
+  muted: boolean;
   style: OverlayStyle;
   layout: OverlayLayout;
   showCredit: boolean;
@@ -35,6 +36,7 @@ interface ScoreboardCardProps {
 }
 
 const GOAL_FLASH_DURATION_MS = 30_000;
+const GOAL_HORN_DURATION_MS = 3_000;
 const UPCOMING_DETAIL_ROTATION_MS = 10_000;
 
 interface GoalFlashState {
@@ -42,6 +44,8 @@ interface GoalFlashState {
   team: TeamRecord;
   alignment: 'away' | 'home';
 }
+
+type GoalHornCleanup = () => void;
 
 function getTeamName(team: TeamRecord): string {
   return (team.commonName?.default ?? team.abbrev).toUpperCase();
@@ -335,10 +339,181 @@ function useGoalFlash(game: NhlGame | null): GoalFlashState | null {
   return goalFlash;
 }
 
+function disconnectAudioNode(node: AudioNode) {
+  try {
+    node.disconnect();
+  } catch {
+    // Disconnect can throw if the node was already released.
+  }
+}
+
+function stopAudioSource(source: AudioScheduledSourceNode, time: number) {
+  try {
+    source.stop(time);
+  } catch {
+    // Stop can throw if the source has already ended.
+  }
+}
+
+async function playGoalHorn(audioContext: AudioContext): Promise<GoalHornCleanup | null> {
+  if (audioContext.state === 'closed') {
+    return null;
+  }
+
+  if (audioContext.state === 'suspended') {
+    await audioContext.resume();
+  }
+
+  const startTime = audioContext.currentTime + 0.02;
+  const endTime = startTime + GOAL_HORN_DURATION_MS / 1_000;
+  const masterGain = audioContext.createGain();
+  const audioNodes: AudioNode[] = [masterGain];
+  const sources: AudioScheduledSourceNode[] = [];
+
+  masterGain.gain.setValueAtTime(0.18, startTime);
+  masterGain.connect(audioContext.destination);
+
+  [
+    { frequency: 311.13, detune: -8, gain: 0.4 },
+    { frequency: 392, detune: 5, gain: 0.32 },
+    { frequency: 466.16, detune: 0, gain: 0.24 },
+  ].forEach(({ frequency, detune, gain }) => {
+    const oscillator = audioContext.createOscillator();
+    const vibrato = audioContext.createOscillator();
+    const vibratoGain = audioContext.createGain();
+    const filter = audioContext.createBiquadFilter();
+    const voiceGain = audioContext.createGain();
+
+    oscillator.type = 'sawtooth';
+    oscillator.frequency.setValueAtTime(frequency, startTime);
+    oscillator.detune.setValueAtTime(detune, startTime);
+
+    vibrato.type = 'sine';
+    vibrato.frequency.setValueAtTime(4.8, startTime);
+    vibratoGain.gain.setValueAtTime(12, startTime);
+
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(Math.max(680, frequency * 2.15), startTime);
+    filter.Q.setValueAtTime(0.8, startTime);
+
+    voiceGain.gain.setValueAtTime(0.0001, startTime);
+    voiceGain.gain.linearRampToValueAtTime(gain, startTime + 0.08);
+    voiceGain.gain.setValueAtTime(gain, endTime - 0.18);
+    voiceGain.gain.exponentialRampToValueAtTime(0.0001, endTime);
+
+    vibrato.connect(vibratoGain);
+    vibratoGain.connect(oscillator.detune);
+    oscillator.connect(filter);
+    filter.connect(voiceGain);
+    voiceGain.connect(masterGain);
+
+    oscillator.start(startTime);
+    vibrato.start(startTime);
+    oscillator.stop(endTime);
+    vibrato.stop(endTime);
+
+    sources.push(oscillator, vibrato);
+    audioNodes.push(vibratoGain, filter, voiceGain);
+  });
+
+  let released = false;
+  const cleanupTimeoutId = window.setTimeout(() => {
+    cleanup();
+  }, GOAL_HORN_DURATION_MS + 250);
+
+  function cleanup() {
+    if (released) {
+      return;
+    }
+
+    released = true;
+    window.clearTimeout(cleanupTimeoutId);
+    const stopTime = audioContext.currentTime;
+
+    sources.forEach((source) => {
+      stopAudioSource(source, stopTime);
+      disconnectAudioNode(source);
+    });
+
+    audioNodes.forEach(disconnectAudioNode);
+  }
+
+  return cleanup;
+}
+
+function useGoalHorn(goalFlash: GoalFlashState | null, muted: boolean) {
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const activeHornCleanupRef = useRef<GoalHornCleanup | null>(null);
+  const lastPlayedGoalKeyRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (muted) {
+      activeHornCleanupRef.current?.();
+      activeHornCleanupRef.current = null;
+    }
+
+    if (!goalFlash) {
+      return;
+    }
+
+    if (lastPlayedGoalKeyRef.current === goalFlash.key) {
+      return;
+    }
+
+    lastPlayedGoalKeyRef.current = goalFlash.key;
+
+    if (muted || typeof window.AudioContext !== 'function') {
+      return;
+    }
+
+    const audioContext =
+      audioContextRef.current ?? new window.AudioContext();
+
+    audioContextRef.current = audioContext;
+    activeHornCleanupRef.current?.();
+    activeHornCleanupRef.current = null;
+
+    let cancelled = false;
+
+    void playGoalHorn(audioContext)
+      .then((cleanup) => {
+        if (cancelled) {
+          cleanup?.();
+          return;
+        }
+
+        activeHornCleanupRef.current = cleanup;
+      })
+      .catch(() => {
+        // Audio playback is best-effort and can be blocked by browser policy.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [goalFlash, muted]);
+
+  useEffect(() => {
+    return () => {
+      activeHornCleanupRef.current?.();
+      activeHornCleanupRef.current = null;
+
+      if (!audioContextRef.current) {
+        return;
+      }
+
+      void audioContextRef.current.close().catch(() => {
+        // Ignore shutdown failures during unmount.
+      });
+    };
+  }, []);
+}
+
 export function ScoreboardCard({
   game,
   previousGame = null,
   showClock,
+  muted,
   style,
   layout,
   showCredit,
@@ -379,6 +554,8 @@ export function ScoreboardCard({
   }, [manualGoalFlash]);
 
   const activeGoalFlash = manualGoalFlash ?? goalFlash;
+
+  useGoalHorn(activeGoalFlash, muted);
 
   if (!game) {
     return (

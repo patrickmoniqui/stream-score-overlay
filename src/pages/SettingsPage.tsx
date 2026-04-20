@@ -13,6 +13,11 @@ import {
   fetchTwitchGateStatus,
   type TwitchGateStatus,
 } from '../lib/twitchGate';
+import {
+  buildTrackedOverlayUrl,
+  getAnalyticsInstallId,
+  trackAnalyticsEvent,
+} from '../lib/analytics';
 import { findPreviousFinalGame } from '../lib/gameSelection';
 import { useOverlayData } from '../lib/useOverlayData';
 import { buildOverlayUrl, parseConfig } from '../lib/urlState';
@@ -53,6 +58,7 @@ export function SettingsPage() {
   const [config, setConfig] = useState<OverlayConfig>(() =>
     parseConfig(window.location.search),
   );
+  const [installId] = useState(() => getAnalyticsInstallId());
   const [developerMode, setDeveloperMode] = useState(false);
   const [previewGoalFlash, setPreviewGoalFlash] = useState<{
     key: number;
@@ -77,11 +83,16 @@ export function SettingsPage() {
       : config.teams.length <= 2
         ? selectedTeamNames.join(', ')
         : `${config.teams.length} teams selected`;
+  const trackedOverlayUrl = buildTrackedOverlayUrl(config, installId);
 
   useEffect(() => {
     const nextSearch = new URL(buildOverlayUrl(config)).search;
     window.history.replaceState({}, '', `${window.location.pathname}${nextSearch}`);
   }, [config]);
+
+  useEffect(() => {
+    void trackAnalyticsEvent('settings_opened', config, { installId });
+  }, [installId]);
 
   useEffect(() => {
     if (!copied) {
@@ -135,7 +146,8 @@ export function SettingsPage() {
   }, [twitchGateEnabled, twitchGateStatus]);
 
   async function copyUrl() {
-    await navigator.clipboard.writeText(buildOverlayUrl(config));
+    await navigator.clipboard.writeText(trackedOverlayUrl);
+    void trackAnalyticsEvent('overlay_link_copied', config, { installId });
     setCopied(true);
   }
 
@@ -368,6 +380,20 @@ export function SettingsPage() {
             <span>Show live clock</span>
           </label>
 
+          <label className="toggle">
+            <input
+              type="checkbox"
+              checked={config.muted}
+              onChange={(event) =>
+                setConfig((current) => ({
+                  ...current,
+                  muted: event.target.checked,
+                }))
+              }
+            />
+            <span>Mute</span>
+          </label>
+
           {canUseTestingTools ? (
             <label className="toggle">
               <input
@@ -381,7 +407,7 @@ export function SettingsPage() {
 
           <div className="field">
             <span>Overlay link</span>
-            <textarea readOnly value={buildOverlayUrl(config)} rows={4} />
+            <textarea readOnly value={trackedOverlayUrl} rows={4} />
           </div>
 
           <button className="primary-button" onClick={() => void copyUrl()}>
@@ -431,6 +457,7 @@ export function SettingsPage() {
               game={data.selectedGame}
               previousGame={previousGame}
               showClock={config.showClock}
+              muted={config.muted}
               style={config.style}
               layout={config.layout}
               showCredit
@@ -442,9 +469,9 @@ export function SettingsPage() {
             <div className="developer-card">
               <p className="developer-label">Testing Tools</p>
               <p className="developer-copy">
-                Use these preview controls to test the goal animation without
-                waiting for a real score change. They only affect the preview on
-                this page.
+                Use these preview controls to test the goal animation and horn
+                without waiting for a real score change. They only affect the
+                preview on this page.
               </p>
               <div className="developer-actions">
                 <button

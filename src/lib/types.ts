@@ -13,6 +13,7 @@ export interface OverlayConfig {
   refreshSeconds: number;
   playoffsOnly: boolean;
   showClock: boolean;
+  muted: boolean;
   showCredit: boolean;
   unlockToken?: string;
 }

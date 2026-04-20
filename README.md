@@ -43,6 +43,7 @@ This starts:
 - Wrangler on `http://127.0.0.1:8787`
 
 In this mode, Vite forwards `/api/*` to the local Worker so the app behaves much closer to production.
+Use this mode if you want to test analytics locally, since plain `npm run dev` proxies `/api/*` straight to the NHL API.
 
 ## Production setup
 
@@ -112,3 +113,61 @@ TWITCH_SUCCESS_REDIRECT_URL = "https://<your-user>.github.io/<repo>/"
 ```
 
 When both flags are turned on, the settings page can unlock supporter-only options in the future. The current overlay always shows creator credit.
+
+## Basic analytics
+
+The app can collect a small set of anonymous usage events:
+
+- `settings_opened`
+- `overlay_link_copied`
+- `overlay_loaded`
+
+These events are tied to a random install ID stored in local browser storage, not a user account. The copied overlay URL also carries that install ID so overlay loads in OBS can be attributed back to the same install.
+
+Analytics writes are best-effort and no-op automatically when the Worker has no `ANALYTICS_DB` binding.
+
+### Setup
+
+1. Create a D1 database:
+
+```bash
+npx wrangler d1 create nhl-live-feed-analytics
+```
+
+2. Add the returned binding details to `worker/wrangler.toml`:
+
+```toml
+[[d1_databases]]
+binding = "ANALYTICS_DB"
+database_name = "nhl-live-feed-analytics"
+database_id = "<your-d1-database-id>"
+```
+
+3. Apply the schema:
+
+```bash
+npx wrangler d1 execute nhl-live-feed-analytics --remote --file worker/sql/analytics.sql
+```
+
+4. Set a read token for the summary endpoint:
+
+```bash
+npx wrangler secret put ANALYTICS_READ_TOKEN
+```
+
+### Reading the stats
+
+Fetch a JSON summary from the Worker:
+
+```bash
+curl \
+  -H "Authorization: Bearer <your-token>" \
+  "https://your-worker-subdomain.workers.dev/api/analytics/summary?days=30"
+```
+
+The summary includes:
+
+- unique installs in the selected window
+- settings-page users vs overlay users
+- link copies and overlay loads
+- latest-setting breakdowns for style, layout, refresh interval, playoffs toggle, clock toggle, team count, and team selection

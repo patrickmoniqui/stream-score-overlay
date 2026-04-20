@@ -9,6 +9,7 @@ export const DEFAULT_CONFIG: OverlayConfig = {
   refreshSeconds: 10,
   playoffsOnly: true,
   showClock: true,
+  muted: false,
   showCredit: true,
 };
 
@@ -69,6 +70,7 @@ export function parseConfig(search: string): OverlayConfig {
     refreshSeconds,
     playoffsOnly: parseBoolean(params.get('playoffs'), DEFAULT_CONFIG.playoffsOnly),
     showClock: parseBoolean(params.get('clock'), DEFAULT_CONFIG.showClock),
+    muted: parseBoolean(params.get('mute'), DEFAULT_CONFIG.muted),
     showCredit: true,
     unlockToken: params.get('unlock') || undefined,
   };
@@ -82,6 +84,7 @@ export function buildOverlayUrl(config: OverlayConfig): string {
   overlayUrl.searchParams.set('refresh', String(config.refreshSeconds));
   overlayUrl.searchParams.set('playoffs', config.playoffsOnly ? '1' : '0');
   overlayUrl.searchParams.set('clock', config.showClock ? '1' : '0');
+  overlayUrl.searchParams.set('mute', config.muted ? '1' : '0');
 
   if (config.teams.length) {
     overlayUrl.searchParams.set('teams', config.teams.join(','));
