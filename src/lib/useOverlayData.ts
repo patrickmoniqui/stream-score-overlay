@@ -98,9 +98,8 @@ export function useOverlayData(config: OverlayConfig): OverlayDataState {
     config.mode,
     config.playoffsOnly,
     config.showClock,
-    config.team,
+    config.teams.join(','),
   ]);
 
   return state;
 }
-

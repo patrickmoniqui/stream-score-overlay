@@ -90,24 +90,34 @@ export function selectGame(
   games: NhlGame[],
   now = Date.now(),
 ): NhlGame | null {
-  const filteredGames = games.filter((game) => {
+  const eligibleGames = games.filter((game) => {
     if (config.playoffsOnly && !isPlayoffGame(game)) {
       return false;
-    }
-
-    if (config.mode === 'auto' && config.team !== 'AUTO') {
-      return getTeamMatch(game, config.team);
     }
 
     return true;
   });
 
-  if (!filteredGames.length) {
+  if (!eligibleGames.length) {
     return null;
   }
 
-  if (config.mode === 'manual') {
-    return filteredGames.find((game) => game.id === config.gameId) ?? null;
+  if (config.gameId) {
+    return eligibleGames.find((game) => game.id === config.gameId) ?? null;
+  }
+
+  const selectedTeams = new Set(config.teams);
+  const filteredGames =
+    selectedTeams.size
+      ? eligibleGames.filter(
+          (game) =>
+            selectedTeams.has(game.awayTeam.abbrev) ||
+            selectedTeams.has(game.homeTeam.abbrev),
+        )
+      : eligibleGames;
+
+  if (!filteredGames.length) {
+    return null;
   }
 
   const liveGames = filteredGames.filter(isLiveGame).sort(compareAscending);

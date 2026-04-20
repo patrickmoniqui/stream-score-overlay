@@ -2,13 +2,13 @@ export type AppMode = 'auto' | 'manual';
 export type OverlayStyle = 'broadcast' | 'classic' | 'minimal' | 'arena';
 export type OverlayLayout = 'stacked' | 'compact';
 
-export type TeamChoice = 'AUTO' | string;
+export type TeamChoice = string;
 
 export interface OverlayConfig {
   mode: AppMode;
   style: OverlayStyle;
   layout: OverlayLayout;
-  team: TeamChoice;
+  teams: TeamChoice[];
   gameId?: number;
   playoffsOnly: boolean;
   showClock: boolean;

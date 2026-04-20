@@ -154,3 +154,21 @@ export function getSeriesLine(game: NhlGame): string | null {
 
   return parts.join(' • ');
 }
+
+export function getCompactSeriesState(game: NhlGame): string | null {
+  const series = game.seriesStatus;
+
+  if (!series) {
+    return null;
+  }
+
+  if (series.topSeedWins === series.bottomSeedWins) {
+    return `Series tied ${series.topSeedWins}-${series.bottomSeedWins}`;
+  }
+
+  if (series.topSeedWins > series.bottomSeedWins) {
+    return `${series.topSeedTeamAbbrev} leads ${series.topSeedWins}-${series.bottomSeedWins}`;
+  }
+
+  return `${series.bottomSeedTeamAbbrev} leads ${series.bottomSeedWins}-${series.topSeedWins}`;
+}

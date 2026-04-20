@@ -88,6 +88,21 @@ textarea {
   line-height: 1.6;
 }
 
+.version-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  margin: 18px 0 0;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  background: rgba(10, 25, 41, 0.56);
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .settings-layout {
   display: grid;
   gap: 24px;
@@ -144,6 +159,179 @@ textarea {
 
 .field textarea {
   resize: vertical;
+}
+
+.team-picker {
+  position: relative;
+}
+
+.team-picker summary {
+  list-style: none;
+}
+
+.team-picker summary::-webkit-details-marker {
+  display: none;
+}
+
+.team-picker-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg-panel-strong);
+  color: var(--text);
+  padding: 14px 16px;
+  cursor: pointer;
+}
+
+.team-picker-trigger::after {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(45deg) translateY(-2px);
+  flex: 0 0 auto;
+  transition: transform 160ms ease;
+}
+
+.team-picker[open] .team-picker-trigger {
+  border-color: rgba(245, 182, 62, 0.42);
+  box-shadow: 0 0 0 1px rgba(245, 182, 62, 0.12);
+}
+
+.team-picker[open] .team-picker-trigger::after {
+  transform: rotate(-135deg) translateY(-1px);
+}
+
+.team-picker-trigger-text {
+  min-width: 0;
+  color: var(--text);
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.team-picker-trigger-text.is-placeholder {
+  color: var(--muted);
+}
+
+.team-picker-trigger-count {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.team-picker-popover {
+  display: grid;
+  gap: 12px;
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: rgba(10, 25, 41, 0.98);
+  padding: 14px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.24);
+}
+
+.team-picker-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.team-picker-copy {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.team-picker-clear {
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.team-picker-clear:disabled {
+  color: rgba(170, 192, 216, 0.4);
+  cursor: default;
+}
+
+.team-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.team-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 68px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  background: var(--bg-panel-strong);
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.team-option:hover {
+  border-color: rgba(245, 182, 62, 0.34);
+  transform: translateY(-1px);
+}
+
+.team-option.is-selected {
+  border-color: rgba(245, 182, 62, 0.52);
+  background:
+    linear-gradient(180deg, rgba(245, 182, 62, 0.14), rgba(245, 182, 62, 0.04)),
+    var(--bg-panel-strong);
+}
+
+.team-option input {
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: var(--accent);
+  flex: 0 0 auto;
+}
+
+.team-option-copy {
+  min-width: 0;
+}
+
+.team-option-name,
+.team-option-code {
+  display: block;
+}
+
+.team-option-name {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.94rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.team-option-code {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .toggle {
@@ -637,9 +825,10 @@ textarea {
 }
 
 .compact-meta {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 4px;
   min-width: 124px;
   padding: 10px 12px;
   background: var(--scorebug-header-background);
@@ -657,6 +846,20 @@ textarea {
   text-transform: uppercase;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compact-meta-series {
+  max-width: 100%;
+  color: var(--scorebug-team-location);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
@@ -1057,6 +1260,10 @@ textarea {
   min-width: 104px;
 }
 
+.scoreboard-card[data-style="minimal"][data-layout="compact"] .compact-meta-series {
+  color: rgba(255, 255, 255, 0.58);
+}
+
 .scoreboard-card[data-style="minimal"][data-layout="compact"] .compact-team-copy {
   padding: 0;
 }
@@ -1137,16 +1344,6 @@ textarea {
   padding-top: 16px;
 }
 
-.creator-label {
-  margin: 0 0 6px;
-  color: var(--text);
-  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
-  font-size: 1rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
 .creator-copy {
   margin: 0;
   color: var(--muted);
@@ -1185,6 +1382,10 @@ textarea {
 
 @media (max-width: 900px) {
   .settings-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .team-picker-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1241,6 +1442,11 @@ textarea {
 
   .compact-meta-detail {
     font-size: 0.98rem;
+  }
+
+  .compact-meta-series {
+    font-size: 0.56rem;
+    letter-spacing: 0.1em;
   }
 
   .compact-team-away {

@@ -2,11 +2,13 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import packageJson from './package.json';
 
 const rootDir = fileURLToPath(new URL('.', import.meta.url));
 
 export default defineConfig(({ command }) => {
   const useLocalWorker = process.env.USE_LOCAL_WORKER === '1';
+  const buildNumber = process.env.GITHUB_RUN_NUMBER ?? '';
   const proxyTarget = useLocalWorker
     ? 'http://127.0.0.1:8787'
     : 'https://api-web.nhle.com/v1';
@@ -16,6 +18,10 @@ export default defineConfig(({ command }) => {
 
   return {
     base: command === 'build' ? './' : '/',
+    define: {
+      __APP_VERSION__: JSON.stringify(packageJson.version),
+      __APP_BUILD_NUMBER__: JSON.stringify(buildNumber),
+    },
     plugins: [react()],
     server: {
       host: true,

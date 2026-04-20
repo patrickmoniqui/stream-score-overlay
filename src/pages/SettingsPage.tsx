@@ -5,7 +5,6 @@ import {
   CREDIT_REVEAL_FOR_SECONDS,
 } from '../lib/credit';
 import { isTwitchGateEnabled } from '../lib/features';
-import { formatGameLabel } from '../lib/format';
 import { OVERLAY_STYLE_OPTIONS } from '../lib/overlayStyles';
 import { NHL_TEAMS } from '../lib/teams';
 import {
@@ -19,8 +18,16 @@ import { useOverlayData } from '../lib/useOverlayData';
 import { buildOverlayUrl, parseConfig } from '../lib/urlState';
 import type { OverlayConfig } from '../lib/types';
 
+const SELECTABLE_NHL_TEAMS = NHL_TEAMS.filter((team) => team.abbrev !== 'AUTO');
+const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '[::1]']);
+
 export function SettingsPage() {
   const twitchGateEnabled = isTwitchGateEnabled();
+  const canUseTestingTools =
+    import.meta.env.DEV || LOCAL_HOSTNAMES.has(window.location.hostname);
+  const versionLabel = __APP_BUILD_NUMBER__
+    ? `v${__APP_VERSION__} · build ${__APP_BUILD_NUMBER__}`
+    : `v${__APP_VERSION__}`;
   const [config, setConfig] = useState<OverlayConfig>(() =>
     parseConfig(window.location.search),
   );
@@ -39,6 +46,15 @@ export function SettingsPage() {
   const selectedStyle =
     OVERLAY_STYLE_OPTIONS.find((option) => option.value === config.style) ??
     OVERLAY_STYLE_OPTIONS[0];
+  const selectedTeamNames = SELECTABLE_NHL_TEAMS.filter((team) =>
+    config.teams.includes(team.abbrev),
+  ).map((team) => team.name);
+  const teamPickerLabel =
+    config.teams.length === 0
+      ? 'Auto (follow schedule)'
+      : config.teams.length <= 2
+        ? selectedTeamNames.join(', ')
+        : `${config.teams.length} teams selected`;
 
   useEffect(() => {
     const nextSearch = new URL(buildOverlayUrl(config)).search;
@@ -68,8 +84,6 @@ export function SettingsPage() {
         setTwitchGateError(null);
         setConfig((current) => ({
           ...current,
-          showCredit:
-            status.entitled || !twitchGateEnabled ? current.showCredit : true,
           unlockToken: status.entitled ? status.overlayToken ?? undefined : undefined,
         }));
       })
@@ -93,7 +107,6 @@ export function SettingsPage() {
     if (twitchGateEnabled && !twitchGateStatus?.entitled) {
       setConfig((current) => ({
         ...current,
-        showCredit: true,
         unlockToken: undefined,
       }));
     }
@@ -111,78 +124,109 @@ export function SettingsPage() {
     });
   }
 
+  function toggleTeam(teamAbbrev: string) {
+    setConfig((current) => {
+      const selectedTeams = new Set(current.teams);
+
+      if (selectedTeams.has(teamAbbrev)) {
+        selectedTeams.delete(teamAbbrev);
+      } else {
+        selectedTeams.add(teamAbbrev);
+      }
+
+      const nextTeams = SELECTABLE_NHL_TEAMS.filter((team) =>
+        selectedTeams.has(team.abbrev),
+      ).map((team) => team.abbrev);
+
+      return {
+        ...current,
+        mode: nextTeams.length ? 'manual' : 'auto',
+        teams: nextTeams,
+        gameId: undefined,
+      };
+    });
+  }
+
   return (
     <main className="settings-page">
       <section className="settings-header">
-        <p className="eyebrow">NHL Live Feed</p>
-        <h1>Score overlay settings</h1>
+        <p className="eyebrow">Live Score Overlay</p>
+        <h1>Set up your score overlay</h1>
         <p className="header-copy">
-          Build a copy-and-paste browser source URL for Twitch, OBS, and GitHub
-          Pages deployments.
+          Choose the teams, look, and layout you want, then copy the link into
+          OBS or any browser source.
+        </p>
+        <p className="version-chip" aria-label={`App version ${versionLabel}`}>
+          Version {versionLabel}
         </p>
       </section>
 
       <section className="settings-layout">
         <div className="settings-panel">
-          <label className="field">
-            <span>Mode</span>
-            <select
-              value={config.mode}
-              onChange={(event) => {
-                const nextMode = event.target.value as OverlayConfig['mode'];
+          <div className="field">
+            <span>Teams</span>
+            <details className="team-picker">
+              <summary className="team-picker-trigger">
+                <span
+                  className={`team-picker-trigger-text${config.teams.length ? '' : ' is-placeholder'}`}
+                >
+                  {teamPickerLabel}
+                </span>
+                <span className="team-picker-trigger-count">
+                  {config.teams.length ? `${config.teams.length} selected` : 'Auto'}
+                </span>
+              </summary>
+              <div className="team-picker-popover">
+                <div className="team-picker-actions">
+                  <p className="team-picker-copy">
+                    Check one or more teams to follow.
+                  </p>
+                  <button
+                    type="button"
+                    className="team-picker-clear"
+                    onClick={() =>
+                      setConfig((current) => ({
+                        ...current,
+                        mode: 'auto',
+                        teams: [],
+                        gameId: undefined,
+                      }))
+                    }
+                    disabled={!config.teams.length}
+                  >
+                    Clear all
+                  </button>
+                </div>
+                <div className="team-picker-grid">
+                  {SELECTABLE_NHL_TEAMS.map((team) => {
+                    const checked = config.teams.includes(team.abbrev);
 
-                setConfig((current) => ({
-                  ...current,
-                  mode: nextMode,
-                  gameId: nextMode === 'manual' ? current.gameId : undefined,
-                }));
-              }}
-            >
-              <option value="auto">Auto</option>
-              <option value="manual">Manual</option>
-            </select>
-          </label>
-
-          {config.mode === 'auto' ? (
-            <label className="field">
-              <span>Team</span>
-              <select
-                value={config.team}
-                onChange={(event) =>
-                  setConfig((current) => ({
-                    ...current,
-                    team: event.target.value,
-                  }))
-                }
-              >
-                {NHL_TEAMS.map((team) => (
-                  <option key={team.abbrev} value={team.abbrev}>
-                    {team.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : (
-            <label className="field">
-              <span>Game</span>
-              <select
-                value={config.gameId ?? ''}
-                onChange={(event) =>
-                  setConfig((current) => ({
-                    ...current,
-                    gameId: event.target.value ? Number(event.target.value) : undefined,
-                  }))
-                }
-              >
-                <option value="">Select a game</option>
-                {data.games.map((game) => (
-                  <option key={game.id} value={game.id}>
-                    {formatGameLabel(game)}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
+                    return (
+                      <label
+                        key={team.abbrev}
+                        className={`team-option${checked ? ' is-selected' : ''}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleTeam(team.abbrev)}
+                        />
+                        <div className="team-option-copy">
+                          <p className="team-option-name">{team.name}</p>
+                          <small className="team-option-code">{team.abbrev}</small>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            </details>
+            <small className="field-hint">
+              {config.teams.length
+                ? `Following ${config.teams.length} team${config.teams.length === 1 ? '' : 's'}. Leave every box unchecked to follow the best live or upcoming game automatically.`
+                : 'Leave every box unchecked to follow the best live or upcoming game automatically.'}
+            </small>
+          </div>
 
           <label className="field">
             <span>Style</span>
@@ -219,7 +263,7 @@ export function SettingsPage() {
               <option value="compact">Compact</option>
             </select>
             <small className="field-hint">
-              Compact keeps the whole scorebug on a single line.
+              Compact keeps everything on a single line.
             </small>
           </label>
 
@@ -251,32 +295,19 @@ export function SettingsPage() {
             <span>Show live clock</span>
           </label>
 
-          <label className="toggle">
-            <input
-              type="checkbox"
-              checked={config.showCredit}
-              disabled={twitchGateEnabled && !twitchGateStatus?.entitled}
-              onChange={(event) =>
-                setConfig((current) => ({
-                  ...current,
-                  showCredit: event.target.checked,
-                }))
-              }
-            />
-            <span>Reveal creator credit</span>
-          </label>
-
-          <label className="toggle">
-            <input
-              type="checkbox"
-              checked={developerMode}
-              onChange={(event) => setDeveloperMode(event.target.checked)}
-            />
-            <span>Developer mode</span>
-          </label>
+          {canUseTestingTools ? (
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={developerMode}
+                onChange={(event) => setDeveloperMode(event.target.checked)}
+              />
+              <span>Show testing tools</span>
+            </label>
+          ) : null}
 
           <div className="field">
-            <span>Overlay URL</span>
+            <span>Overlay link</span>
             <textarea readOnly value={buildOverlayUrl(config)} rows={4} />
           </div>
 
@@ -284,7 +315,7 @@ export function SettingsPage() {
             {copied ? 'Copied' : 'Copy overlay link'}
           </button>
 
-          {loading ? <p className="helper-text">Loading live schedule…</p> : null}
+          {loading ? <p className="helper-text">Loading current games…</p> : null}
           {error ? <p className="helper-text helper-error">{error}</p> : null}
 
           {twitchGateEnabled ? (
@@ -292,8 +323,8 @@ export function SettingsPage() {
               <p className="supporter-label">Twitch Supporter Unlock</p>
               <p className="supporter-copy">
                 Follow <strong>DJMoneyKey</strong> on Twitch to unlock supporter-only
-                options like disabling creator credit. The flag is off by default,
-                so this stays dormant until you opt in.
+                options in the future. The flag is off by default, so this stays
+                dormant until you opt in.
               </p>
               {twitchGateStatus ? (
                 <p className="supporter-status">
@@ -329,17 +360,18 @@ export function SettingsPage() {
               showClock={config.showClock}
               style={config.style}
               layout={config.layout}
-              showCredit={config.showCredit}
-              debugGoalFlash={previewGoalFlash}
-              emptyLabel="No game scheduled for this selection"
+              showCredit
+              debugGoalFlash={canUseTestingTools ? previewGoalFlash : null}
+              emptyLabel="No game found for this setup"
             />
           </div>
-          {developerMode ? (
+          {canUseTestingTools && developerMode ? (
             <div className="developer-card">
-              <p className="developer-label">Developer Mode</p>
+              <p className="developer-label">Testing Tools</p>
               <p className="developer-copy">
-                Preview-only controls for testing overlays without waiting for a
-                real score change. These do not affect the shared overlay URL.
+                Use these preview controls to test the goal animation without
+                waiting for a real score change. They only affect the preview on
+                this page.
               </p>
               <div className="developer-actions">
                 <button
@@ -362,18 +394,9 @@ export function SettingsPage() {
             </div>
           ) : null}
           <p className="helper-text">
-            Default mode follows the schedule automatically. Leave team on
-            Auto to always surface the best current or next game.
+            Leave every team unchecked to follow the best live or upcoming game
+            automatically.
           </p>
-          <div className="creator-note">
-            <p className="creator-label">Created by DJMoneyKey</p>
-            <p className="creator-copy">
-              When enabled, the credit appears every {CREDIT_REVEAL_EVERY_MINUTES}{' '}
-              minutes for about {CREDIT_REVEAL_FOR_SECONDS} seconds. In compact
-              layout it shows below the scorebug; in stacked layout it swaps into
-              the footer line.
-            </p>
-          </div>
         </div>
       </section>
     </main>

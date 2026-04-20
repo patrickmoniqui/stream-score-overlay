@@ -58,6 +58,28 @@ Example:
 VITE_API_BASE_URL=https://your-worker-subdomain.workers.dev/api npm run build
 ```
 
+## Versioning
+
+The settings page shows two version values when available:
+
+- `vX.Y.Z` comes from `package.json` and is your release version
+- `build N` comes from the GitHub Actions run number and increments automatically on each Pages deploy
+
+Recommended workflow:
+
+- use `npm run version:patch` for fixes and small polish
+- use `npm run version:minor` for new user-facing features
+- use `npm run version:major` only for breaking URL or config changes
+
+Example:
+
+```bash
+npm run version:patch
+git add package.json package-lock.json
+git commit -m "Bump version to v0.1.1"
+git push
+```
+
 ## Worker routes
 
 - `/api/schedule/now`
@@ -89,4 +111,4 @@ TWITCH_SESSION_SECRET = "<long-random-secret>"
 TWITCH_SUCCESS_REDIRECT_URL = "https://<your-user>.github.io/<repo>/"
 ```
 
-When both flags are turned on, the settings page can unlock supporter-only options and the overlay verifies a Worker-issued unlock token before honoring `credit=0`.
+When both flags are turned on, the settings page can unlock supporter-only options in the future. The current overlay always shows creator credit.

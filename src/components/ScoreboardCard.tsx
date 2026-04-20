@@ -6,6 +6,7 @@ import {
   CREDIT_REVEAL_INTERVAL_MS,
 } from '../lib/credit';
 import {
+  getCompactSeriesState,
   getSeriesLine,
   getStatusBadge,
   getStatusDetail,
@@ -398,6 +399,7 @@ export function ScoreboardCard({
   const statusTone = getStatusTone(game);
   const isCompact = layout === 'compact';
   const footerText = showCreditReveal ? CREDIT_LABEL : getSeriesLine(game);
+  const compactSeriesState = getCompactSeriesState(game);
 
   return (
     <div
@@ -417,6 +419,9 @@ export function ScoreboardCard({
               <div className="compact-meta-detail">
                 {getCompactMetaText(game, statusDetail)}
               </div>
+              {compactSeriesState ? (
+                <div className="compact-meta-series">{compactSeriesState}</div>
+              ) : null}
             </div>
             <CompactTeam
               team={game.homeTeam}
