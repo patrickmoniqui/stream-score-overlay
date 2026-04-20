@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchScheduleNow, fetchScoreNow } from './api';
+import { fetchScheduleNow, fetchScoreByDate, fetchScoreNow } from './api';
 import { buildMergedGames, getRefreshInterval, selectGame } from './gameSelection';
 import type { DataSnapshot, OverlayConfig, ScheduleResponse, ScoreResponse } from './types';
 
@@ -16,6 +16,21 @@ function createEmptySnapshot(): DataSnapshot {
     schedule: null,
     score: null,
   };
+}
+
+function mergeHistoricalGames(
+  currentGames: DataSnapshot['games'],
+  historicalGames: DataSnapshot['games'],
+): DataSnapshot['games'] {
+  const mergedById = new Map(currentGames.map((game) => [game.id, game]));
+
+  for (const game of historicalGames) {
+    if (!mergedById.has(game.id)) {
+      mergedById.set(game.id, game);
+    }
+  }
+
+  return Array.from(mergedById.values());
 }
 
 export function useOverlayData(config: OverlayConfig): OverlayDataState {
@@ -40,11 +55,21 @@ export function useOverlayData(config: OverlayConfig): OverlayDataState {
           fetchScoreNow(activeController.signal),
         ]);
 
+        const previousScore =
+          score.prevDate
+            ? await fetchScoreByDate(score.prevDate, activeController.signal).catch(
+                () => null,
+              )
+            : null;
+
         if (cancelled) {
           return;
         }
 
-        const mergedGames = buildMergedGames(schedule, score);
+        const mergedGames = mergeHistoricalGames(
+          buildMergedGames(schedule, score),
+          previousScore?.games ?? [],
+        );
         const selectedGame = selectGame(config, mergedGames);
 
         setState({

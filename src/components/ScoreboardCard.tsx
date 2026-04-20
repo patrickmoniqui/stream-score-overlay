@@ -34,7 +34,7 @@ interface ScoreboardCardProps {
   emptyLabel?: string;
 }
 
-const GOAL_FLASH_DURATION_MS = 15_000;
+const GOAL_FLASH_DURATION_MS = 30_000;
 const UPCOMING_DETAIL_ROTATION_MS = 10_000;
 
 interface GoalFlashState {

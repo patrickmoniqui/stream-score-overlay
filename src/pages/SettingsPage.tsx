@@ -21,6 +21,28 @@ import type { OverlayConfig } from '../lib/types';
 const SELECTABLE_NHL_TEAMS = NHL_TEAMS.filter((team) => team.abbrev !== 'AUTO');
 const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '[::1]']);
 
+function TwitchSocialIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        fill="currentColor"
+        d="M4 3h16v11l-4 4h-4l-2 3H7v-3H4V3zm2 2v11h3v2l2-2h4l3-3V5H6zm4 3h2v4h-2V8zm5 0h2v4h-2V8z"
+      />
+    </svg>
+  );
+}
+
+function InstagramSocialIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        fill="currentColor"
+        d="M7.75 2h8.5A5.75 5.75 0 0 1 22 7.75v8.5A5.75 5.75 0 0 1 16.25 22h-8.5A5.75 5.75 0 0 1 2 16.25v-8.5A5.75 5.75 0 0 1 7.75 2zm0 1.8A3.95 3.95 0 0 0 3.8 7.75v8.5A3.95 3.95 0 0 0 7.75 20.2h8.5a3.95 3.95 0 0 0 3.95-3.95v-8.5a3.95 3.95 0 0 0-3.95-3.95h-8.5zm8.95 1.35a1.1 1.1 0 1 1 0 2.2 1.1 1.1 0 0 1 0-2.2zM12 6.8A5.2 5.2 0 1 1 6.8 12 5.2 5.2 0 0 1 12 6.8zm0 1.8A3.4 3.4 0 1 0 15.4 12 3.4 3.4 0 0 0 12 8.6z"
+      />
+    </svg>
+  );
+}
+
 export function SettingsPage() {
   const twitchGateEnabled = isTwitchGateEnabled();
   const canUseTestingTools =
@@ -156,9 +178,35 @@ export function SettingsPage() {
           Choose the teams, look, and layout you want, then copy the link into
           OBS or any browser source.
         </p>
-        <p className="version-chip" aria-label={`App version ${versionLabel}`}>
-          Version {versionLabel}
-        </p>
+        <div className="header-meta">
+          <p className="version-chip" aria-label={`App version ${versionLabel}`}>
+            Version {versionLabel}
+          </p>
+          <div className="social-follow-links" aria-label="Follow DJ MoneyKey">
+          <a
+            className="social-follow-link"
+            href="https://www.twitch.tv/djmoneykey"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <span className="social-follow-icon">
+              <TwitchSocialIcon />
+            </span>
+            <span>Twitch</span>
+          </a>
+          <a
+            className="social-follow-link"
+            href="http://instagram.com/dj_moneykey"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <span className="social-follow-icon">
+              <InstagramSocialIcon />
+            </span>
+            <span>Instagram</span>
+          </a>
+          </div>
+        </div>
       </section>
 
       <section className="settings-layout">
@@ -399,6 +447,10 @@ export function SettingsPage() {
           </p>
         </div>
       </section>
+
+      <footer className="settings-footer">
+        <p>Made with &lt;3 by DJ MoneyKey</p>
+      </footer>
     </main>
   );
 }

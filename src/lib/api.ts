@@ -24,3 +24,9 @@ export function fetchScoreNow(signal?: AbortSignal): Promise<ScoreResponse> {
   return fetchJson<ScoreResponse>('/score/now', signal);
 }
 
+export function fetchScoreByDate(
+  date: string,
+  signal?: AbortSignal,
+): Promise<ScoreResponse> {
+  return fetchJson<ScoreResponse>(`/score/${date}`, signal);
+}
