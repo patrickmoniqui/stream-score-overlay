@@ -37,8 +37,10 @@ export default defineConfig(({ command }) => {
     build: {
       rollupOptions: {
         input: {
-          settings: resolve(rootDir, 'index.html'),
+          home: resolve(rootDir, 'index.html'),
           overlay: resolve(rootDir, 'overlay.html'),
+          gameScore: resolve(rootDir, 'game-score/index.html'),
+          gameScoreOverlay: resolve(rootDir, 'game-score/overlay.html'),
         },
       },
     },

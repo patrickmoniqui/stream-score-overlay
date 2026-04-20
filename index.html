@@ -3,15 +3,23 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>NHL Live Feed Settings</title>
-    <meta
-      name="description"
-      content="Configure an NHL live score overlay for streaming and browser sources."
-    />
+    <title>Keylight Stream Tools</title>
+    <meta name="description" content="Keylight stream tools for OBS and browser sources." />
+    <script>
+      const normalizedPath = window.location.pathname.endsWith('/')
+        ? window.location.pathname
+        : `${window.location.pathname}/`;
+      const isGameScorePath = normalizedPath.includes('/game-score/');
+
+      if (!isGameScorePath) {
+        const target = new URL('game-score/', window.location.href);
+        target.search = window.location.search;
+        target.hash = window.location.hash;
+        window.location.replace(target.toString());
+      }
+    </script>
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main-settings.tsx"></script>
+    <p><a href="./game-score/">Open Game Score</a></p>
   </body>
 </html>
-
