@@ -83,7 +83,10 @@ export function useOverlayData(config: OverlayConfig): OverlayDataState {
           error: null,
         });
 
-        timeoutId = window.setTimeout(loadData, getRefreshInterval(selectedGame));
+        timeoutId = window.setTimeout(
+          loadData,
+          getRefreshInterval(config.refreshSeconds),
+        );
       } catch (error) {
         if (cancelled) {
           return;
@@ -98,7 +101,10 @@ export function useOverlayData(config: OverlayConfig): OverlayDataState {
           error: message,
         }));
 
-        timeoutId = window.setTimeout(loadData, 30_000);
+        timeoutId = window.setTimeout(
+          loadData,
+          getRefreshInterval(config.refreshSeconds),
+        );
       }
     }
 
@@ -122,6 +128,7 @@ export function useOverlayData(config: OverlayConfig): OverlayDataState {
     config.gameId,
     config.mode,
     config.playoffsOnly,
+    config.refreshSeconds,
     config.showClock,
     config.teams.join(','),
   ]);

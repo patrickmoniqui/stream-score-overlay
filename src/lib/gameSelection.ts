@@ -143,30 +143,8 @@ export function selectGame(
   return filteredGames.sort(compareAscending)[0] ?? null;
 }
 
-export function getRefreshInterval(game: NhlGame | null): number {
-  if (!game) {
-    return 60_000;
-  }
-
-  if (isLiveGame(game)) {
-    return 10_000;
-  }
-
-  const startsInMs = getStartMs(game) - Date.now();
-
-  if (startsInMs <= 30 * 60_000) {
-    return 15_000;
-  }
-
-  if (startsInMs <= 4 * 60 * 60_000) {
-    return 30_000;
-  }
-
-  if (isFinalGame(game)) {
-    return 120_000;
-  }
-
-  return 60_000;
+export function getRefreshInterval(refreshSeconds: number): number {
+  return Math.max(1, refreshSeconds) * 1_000;
 }
 
 export function findPreviousFinalGame(

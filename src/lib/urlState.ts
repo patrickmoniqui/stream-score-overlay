@@ -6,6 +6,7 @@ export const DEFAULT_CONFIG: OverlayConfig = {
   style: 'broadcast',
   layout: 'compact',
   teams: [],
+  refreshSeconds: 10,
   playoffsOnly: true,
   showClock: true,
   showCredit: true,
@@ -29,6 +30,18 @@ function normalizeTeams(values: string[]): string[] {
   );
 }
 
+function normalizeRefreshSeconds(value: string | null): number {
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_CONFIG.refreshSeconds;
+  }
+
+  const rounded = Math.round(parsed);
+
+  return Math.min(60, Math.max(1, rounded));
+}
+
 export function parseConfig(search: string): OverlayConfig {
   const params = new URLSearchParams(search);
   const styleParam = params.get('style');
@@ -44,6 +57,7 @@ export function parseConfig(search: string): OverlayConfig {
     : legacyTeam
       ? normalizeTeams([legacyTeam])
       : DEFAULT_CONFIG.teams;
+  const refreshSeconds = normalizeRefreshSeconds(params.get('refresh'));
   const mode = gameId || teams.length ? 'manual' : 'auto';
 
   return {
@@ -52,6 +66,7 @@ export function parseConfig(search: string): OverlayConfig {
     layout,
     teams,
     gameId: Number.isFinite(gameId) ? gameId : undefined,
+    refreshSeconds,
     playoffsOnly: parseBoolean(params.get('playoffs'), DEFAULT_CONFIG.playoffsOnly),
     showClock: parseBoolean(params.get('clock'), DEFAULT_CONFIG.showClock),
     showCredit: true,
@@ -64,6 +79,7 @@ export function buildOverlayUrl(config: OverlayConfig): string {
 
   overlayUrl.searchParams.set('style', config.style);
   overlayUrl.searchParams.set('layout', config.layout);
+  overlayUrl.searchParams.set('refresh', String(config.refreshSeconds));
   overlayUrl.searchParams.set('playoffs', config.playoffsOnly ? '1' : '0');
   overlayUrl.searchParams.set('clock', config.showClock ? '1' : '0');
 

@@ -202,10 +202,24 @@ textarea {
   margin-bottom: 18px;
 }
 
+.field-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .field span {
   color: var(--muted);
   font-size: 0.94rem;
   font-weight: 600;
+}
+
+.field-value {
+  color: var(--text);
+  font-size: 0.84rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
 .field-hint {
@@ -226,6 +240,12 @@ textarea {
 
 .field textarea {
   resize: vertical;
+}
+
+.range-input {
+  width: 100%;
+  margin: 4px 0 2px;
+  accent-color: var(--accent);
 }
 
 .team-picker {

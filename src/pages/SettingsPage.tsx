@@ -315,6 +315,31 @@ export function SettingsPage() {
             </small>
           </label>
 
+          <div className="field">
+            <div className="field-header">
+              <span>Refresh</span>
+              <span className="field-value">{config.refreshSeconds}s</span>
+            </div>
+            <input
+              className="range-input"
+              type="range"
+              min="1"
+              max="60"
+              step="1"
+              value={config.refreshSeconds}
+              onChange={(event) =>
+                setConfig((current) => ({
+                  ...current,
+                  refreshSeconds: Number(event.target.value),
+                }))
+              }
+            />
+            <small className="field-hint">
+              Controls how often the overlay checks for score updates. Lower values
+              refresh faster.
+            </small>
+          </div>
+
           <label className="toggle">
             <input
               type="checkbox"

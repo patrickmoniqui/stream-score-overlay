@@ -10,6 +10,7 @@ export interface OverlayConfig {
   layout: OverlayLayout;
   teams: TeamChoice[];
   gameId?: number;
+  refreshSeconds: number;
   playoffsOnly: boolean;
   showClock: boolean;
   showCredit: boolean;
