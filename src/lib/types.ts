@@ -1,15 +1,19 @@
 export type AppMode = 'auto' | 'manual';
 export type OverlayStyle = 'broadcast' | 'classic' | 'minimal' | 'arena';
+export type OverlayLayout = 'stacked' | 'compact';
 
 export type TeamChoice = 'AUTO' | string;
 
 export interface OverlayConfig {
   mode: AppMode;
   style: OverlayStyle;
+  layout: OverlayLayout;
   team: TeamChoice;
   gameId?: number;
   playoffsOnly: boolean;
   showClock: boolean;
+  showCredit: boolean;
+  unlockToken?: string;
 }
 
 export interface NamedValue {

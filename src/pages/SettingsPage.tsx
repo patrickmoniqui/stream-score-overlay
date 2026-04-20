@@ -1,17 +1,33 @@
 import { useEffect, useState } from 'react';
 import { ScoreboardCard } from '../components/ScoreboardCard';
+import {
+  CREDIT_REVEAL_EVERY_MINUTES,
+  CREDIT_REVEAL_FOR_SECONDS,
+} from '../lib/credit';
+import { isTwitchGateEnabled } from '../lib/features';
 import { formatGameLabel } from '../lib/format';
 import { OVERLAY_STYLE_OPTIONS } from '../lib/overlayStyles';
 import { NHL_TEAMS } from '../lib/teams';
+import {
+  buildTwitchLoginUrl,
+  buildTwitchLogoutUrl,
+  fetchTwitchGateStatus,
+  type TwitchGateStatus,
+} from '../lib/twitchGate';
 import { useOverlayData } from '../lib/useOverlayData';
 import { buildOverlayUrl, parseConfig } from '../lib/urlState';
 import type { OverlayConfig } from '../lib/types';
 
 export function SettingsPage() {
+  const twitchGateEnabled = isTwitchGateEnabled();
   const [config, setConfig] = useState<OverlayConfig>(() =>
     parseConfig(window.location.search),
   );
   const [copied, setCopied] = useState(false);
+  const [twitchGateStatus, setTwitchGateStatus] = useState<TwitchGateStatus | null>(
+    null,
+  );
+  const [twitchGateError, setTwitchGateError] = useState<string | null>(null);
   const { data, error, loading } = useOverlayData(config);
   const selectedStyle =
     OVERLAY_STYLE_OPTIONS.find((option) => option.value === config.style) ??
@@ -31,6 +47,50 @@ export function SettingsPage() {
 
     return () => window.clearTimeout(timeoutId);
   }, [copied]);
+
+  useEffect(() => {
+    if (!twitchGateEnabled) {
+      return;
+    }
+
+    const controller = new AbortController();
+
+    void fetchTwitchGateStatus(controller.signal)
+      .then((status) => {
+        setTwitchGateStatus(status);
+        setTwitchGateError(null);
+        setConfig((current) => ({
+          ...current,
+          showCredit:
+            status.entitled || !twitchGateEnabled ? current.showCredit : true,
+          unlockToken: status.entitled ? status.overlayToken ?? undefined : undefined,
+        }));
+      })
+      .catch((fetchError) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        const message =
+          fetchError instanceof Error
+            ? fetchError.message
+            : 'Unable to load Twitch gate status.';
+
+        setTwitchGateError(message);
+      });
+
+    return () => controller.abort();
+  }, [twitchGateEnabled]);
+
+  useEffect(() => {
+    if (twitchGateEnabled && !twitchGateStatus?.entitled) {
+      setConfig((current) => ({
+        ...current,
+        showCredit: true,
+        unlockToken: undefined,
+      }));
+    }
+  }, [twitchGateEnabled, twitchGateStatus]);
 
   async function copyUrl() {
     await navigator.clipboard.writeText(buildOverlayUrl(config));
@@ -130,6 +190,25 @@ export function SettingsPage() {
             <small className="field-hint">{selectedStyle.description}</small>
           </label>
 
+          <label className="field">
+            <span>Layout</span>
+            <select
+              value={config.layout}
+              onChange={(event) =>
+                setConfig((current) => ({
+                  ...current,
+                  layout: event.target.value as OverlayConfig['layout'],
+                }))
+              }
+            >
+              <option value="stacked">Stacked</option>
+              <option value="compact">Compact</option>
+            </select>
+            <small className="field-hint">
+              Compact keeps the whole scorebug on a single line.
+            </small>
+          </label>
+
           <label className="toggle">
             <input
               type="checkbox"
@@ -158,6 +237,21 @@ export function SettingsPage() {
             <span>Show live clock</span>
           </label>
 
+          <label className="toggle">
+            <input
+              type="checkbox"
+              checked={config.showCredit}
+              disabled={twitchGateEnabled && !twitchGateStatus?.entitled}
+              onChange={(event) =>
+                setConfig((current) => ({
+                  ...current,
+                  showCredit: event.target.checked,
+                }))
+              }
+            />
+            <span>Reveal creator credit</span>
+          </label>
+
           <div className="field">
             <span>Overlay URL</span>
             <textarea readOnly value={buildOverlayUrl(config)} rows={4} />
@@ -169,6 +263,39 @@ export function SettingsPage() {
 
           {loading ? <p className="helper-text">Loading live schedule…</p> : null}
           {error ? <p className="helper-text helper-error">{error}</p> : null}
+
+          {twitchGateEnabled ? (
+            <div className="supporter-card">
+              <p className="supporter-label">Twitch Supporter Unlock</p>
+              <p className="supporter-copy">
+                Follow <strong>DJMoneyKey</strong> on Twitch to unlock supporter-only
+                options like disabling creator credit. The flag is off by default,
+                so this stays dormant until you opt in.
+              </p>
+              {twitchGateStatus ? (
+                <p className="supporter-status">
+                  {twitchGateStatus.entitled
+                    ? `Connected as ${twitchGateStatus.login}. Follower check passed.`
+                    : twitchGateStatus.authenticated
+                      ? `Connected as ${twitchGateStatus.login}, but follower check has not passed yet.`
+                      : 'Not connected to Twitch.'}
+                </p>
+              ) : null}
+              {twitchGateError ? (
+                <p className="helper-text helper-error">{twitchGateError}</p>
+              ) : null}
+              <div className="supporter-actions">
+                <a className="secondary-button" href={buildTwitchLoginUrl()}>
+                  Connect Twitch
+                </a>
+                {twitchGateStatus?.authenticated ? (
+                  <a className="ghost-link" href={buildTwitchLogoutUrl()}>
+                    Sign out
+                  </a>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <div className="preview-panel">
@@ -177,6 +304,8 @@ export function SettingsPage() {
               game={data.selectedGame}
               showClock={config.showClock}
               style={config.style}
+              layout={config.layout}
+              showCredit={config.showCredit}
               emptyLabel="No game scheduled for this selection"
             />
           </div>
@@ -184,6 +313,15 @@ export function SettingsPage() {
             Default mode follows the schedule automatically. Leave team on
             Auto to always surface the best current or next game.
           </p>
+          <div className="creator-note">
+            <p className="creator-label">Created by DJMoneyKey</p>
+            <p className="creator-copy">
+              When enabled, the credit appears every {CREDIT_REVEAL_EVERY_MINUTES}{' '}
+              minutes for about {CREDIT_REVEAL_FOR_SECONDS} seconds. In compact
+              layout it shows below the scorebug; in stacked layout it swaps into
+              the footer line.
+            </p>
+          </div>
         </div>
       </section>
     </main>

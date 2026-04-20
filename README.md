@@ -64,3 +64,29 @@ VITE_API_BASE_URL=https://your-worker-subdomain.workers.dev/api npm run build
 - `/api/score/now`
 
 These proxy the NHL public web endpoints with short cache windows and permissive CORS for the GitHub Pages frontend.
+
+## Optional Twitch gate
+
+The Twitch follower gate is scaffolded behind feature flags and is off by default.
+
+Frontend env:
+
+```bash
+VITE_ENABLE_TWITCH_GATE=false
+VITE_TWITCH_AUTH_BASE=https://your-worker-subdomain.workers.dev
+```
+
+Worker vars:
+
+```toml
+TWITCH_GATE_ENABLED = "false"
+TWITCH_ALLOWED_ORIGIN = "https://<your-user>.github.io"
+TWITCH_BROADCASTER_ID = "<your-twitch-broadcaster-id>"
+TWITCH_CLIENT_ID = "<twitch-client-id>"
+TWITCH_CLIENT_SECRET = "<twitch-client-secret>"
+TWITCH_REDIRECT_URI = "https://your-worker-subdomain.workers.dev/auth/twitch/callback"
+TWITCH_SESSION_SECRET = "<long-random-secret>"
+TWITCH_SUCCESS_REDIRECT_URL = "https://<your-user>.github.io/<repo>/"
+```
+
+When both flags are turned on, the settings page can unlock supporter-only options and the overlay verifies a Worker-issued unlock token before honoring `credit=0`.

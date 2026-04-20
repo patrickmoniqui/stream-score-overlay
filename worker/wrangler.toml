@@ -2,3 +2,6 @@ name = "nhl-live-feed-worker"
 main = "src/index.ts"
 compatibility_date = "2026-04-19"
 
+[vars]
+TWITCH_GATE_ENABLED = "false"
+TWITCH_SESSION_TTL_SECONDS = "86400"
