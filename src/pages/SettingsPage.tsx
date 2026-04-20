@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ScoreboardCard } from '../components/ScoreboardCard';
 import { formatGameLabel } from '../lib/format';
+import { OVERLAY_STYLE_OPTIONS } from '../lib/overlayStyles';
 import { NHL_TEAMS } from '../lib/teams';
 import { useOverlayData } from '../lib/useOverlayData';
 import { buildOverlayUrl, parseConfig } from '../lib/urlState';
@@ -12,6 +13,9 @@ export function SettingsPage() {
   );
   const [copied, setCopied] = useState(false);
   const { data, error, loading } = useOverlayData(config);
+  const selectedStyle =
+    OVERLAY_STYLE_OPTIONS.find((option) => option.value === config.style) ??
+    OVERLAY_STYLE_OPTIONS[0];
 
   useEffect(() => {
     const nextSearch = new URL(buildOverlayUrl(config)).search;
@@ -106,6 +110,26 @@ export function SettingsPage() {
             </label>
           )}
 
+          <label className="field">
+            <span>Style</span>
+            <select
+              value={config.style}
+              onChange={(event) =>
+                setConfig((current) => ({
+                  ...current,
+                  style: event.target.value as OverlayConfig['style'],
+                }))
+              }
+            >
+              {OVERLAY_STYLE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <small className="field-hint">{selectedStyle.description}</small>
+          </label>
+
           <label className="toggle">
             <input
               type="checkbox"
@@ -152,6 +176,7 @@ export function SettingsPage() {
             <ScoreboardCard
               game={data.selectedGame}
               showClock={config.showClock}
+              style={config.style}
               emptyLabel="No game scheduled for this selection"
             />
           </div>
@@ -164,4 +189,3 @@ export function SettingsPage() {
     </main>
   );
 }
-

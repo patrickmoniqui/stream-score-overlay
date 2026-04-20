@@ -1,15 +1,24 @@
+@import url("https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap");
+
 :root {
   color-scheme: dark;
-  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
   --bg: #08131f;
   --bg-panel: rgba(8, 19, 31, 0.82);
   --bg-panel-strong: rgba(10, 25, 41, 0.94);
-  --bg-preview: linear-gradient(135deg, #0c1e2e 0%, #173655 100%);
+  --bg-preview:
+    radial-gradient(circle at top left, rgba(214, 33, 40, 0.18), transparent 30%),
+    linear-gradient(145deg, #07121d 0%, #0f2740 55%, #071623 100%);
   --border: rgba(196, 219, 245, 0.16);
   --text: #f5f9ff;
   --muted: #aac0d8;
-  --accent: #4cc9f0;
-  --accent-strong: #3fb1d5;
+  --accent: #f5b63e;
+  --accent-strong: #ffcb67;
+  --broadcast-red: #d62e38;
+  --broadcast-red-strong: #f04b56;
+  --broadcast-silver: #d6dde5;
+  --broadcast-slate: #162434;
+  --broadcast-slate-strong: #0d1824;
   --danger: #ff8d8d;
 }
 
@@ -67,6 +76,9 @@ textarea {
   margin: 0 0 12px;
   font-size: clamp(2.1rem, 4vw, 3.4rem);
   line-height: 1;
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.01em;
 }
 
 .header-copy {
@@ -111,6 +123,12 @@ textarea {
   color: var(--muted);
   font-size: 0.94rem;
   font-weight: 600;
+}
+
+.field-hint {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
 }
 
 .field select,
@@ -172,15 +190,15 @@ textarea {
   background: var(--bg-preview);
   display: flex;
   align-items: flex-start;
-  justify-content: center;
+  justify-content: flex-start;
 }
 
 .overlay-page {
-  padding: 24px;
+  padding: 14px;
 }
 
 .overlay-card {
-  min-width: 440px;
+  min-width: 372px;
 }
 
 .overlay-error {
@@ -193,71 +211,434 @@ textarea {
 }
 
 .scoreboard-card {
+  --scorebug-radius: 18px;
+  --scorebug-border: rgba(255, 255, 255, 0.08);
+  --scorebug-background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 22%),
+    linear-gradient(160deg, rgba(8, 17, 27, 0.98), rgba(18, 31, 47, 0.94));
+  --scorebug-shadow:
+    0 24px 54px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --scorebug-header-background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent),
+    rgba(4, 9, 15, 0.82);
+  --scorebug-header-border: rgba(255, 255, 255, 0.07);
+  --scorebug-card-sheen:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03), transparent 20%, transparent 80%, rgba(255, 255, 255, 0.02)),
+    linear-gradient(90deg, rgba(214, 46, 56, 0.12), transparent 18%);
+  --scorebug-rail: linear-gradient(90deg, rgba(245, 182, 62, 0.9), rgba(245, 182, 62, 0.08));
+  --scorebug-status-detail: var(--broadcast-silver);
+  --scorebug-row-border: rgba(255, 255, 255, 0.07);
+  --scorebug-row-away-bg:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04), transparent 26%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent);
+  --scorebug-row-home-bg:
+    linear-gradient(90deg, rgba(214, 46, 56, 0.08), transparent 22%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.01), transparent);
+  --scorebug-flag-away: linear-gradient(180deg, var(--accent), rgba(245, 182, 62, 0.4));
+  --scorebug-flag-home: linear-gradient(180deg, var(--broadcast-red), rgba(214, 46, 56, 0.48));
+  --scorebug-score-box:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 28%),
+    linear-gradient(180deg, #0e1722, #111f2f);
+  --scorebug-score-border: rgba(255, 255, 255, 0.08);
+  --scorebug-footer-bg: rgba(4, 9, 15, 0.72);
+  --scorebug-footer-border: rgba(255, 255, 255, 0.07);
+  --scorebug-team-name: var(--broadcast-silver);
+  --scorebug-team-location: var(--muted);
+  --scorebug-series: rgba(240, 245, 250, 0.86);
+  --scorebug-min-width: 360px;
+  --scorebug-row-height: 78px;
+  --scorebug-logo-size: 32px;
+  --scorebug-header-padding: 10px 14px;
+  --scorebug-footer-display: block;
+  --scorebug-location-display: inline;
+  --scorebug-emblem-display: flex;
   width: fit-content;
-  min-width: 380px;
-  border: 1px solid rgba(236, 247, 255, 0.12);
-  border-radius: 24px;
-  background:
-    linear-gradient(135deg, rgba(9, 20, 34, 0.94), rgba(13, 31, 49, 0.9));
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
-  padding: 16px 18px;
+  min-width: var(--scorebug-min-width);
+  border: 1px solid var(--scorebug-border);
+  border-radius: var(--scorebug-radius);
+  background: var(--scorebug-background);
+  box-shadow: var(--scorebug-shadow);
+  overflow: hidden;
+  position: relative;
+}
+
+.scoreboard-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--scorebug-card-sheen);
+  pointer-events: none;
+}
+
+.scoreboard-card[data-style="classic"] {
+  --scorebug-radius: 8px;
+  --scorebug-border: rgba(210, 222, 233, 0.26);
+  --scorebug-background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 25%),
+    linear-gradient(180deg, #102338, #16324d);
+  --scorebug-shadow: 0 18px 36px rgba(0, 0, 0, 0.26);
+  --scorebug-header-background:
+    linear-gradient(180deg, #eef3f8, #c5d1dd);
+  --scorebug-header-border: rgba(23, 42, 61, 0.22);
+  --scorebug-card-sheen:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04), transparent 24%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.04), transparent 30%);
+  --scorebug-rail: linear-gradient(90deg, rgba(30, 57, 89, 0.6), rgba(30, 57, 89, 0.08));
+  --scorebug-status-detail: #15283a;
+  --scorebug-row-away-bg:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.08), transparent 35%),
+    linear-gradient(180deg, #173450, #13304a);
+  --scorebug-row-home-bg:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.06), transparent 35%),
+    linear-gradient(180deg, #102a43, #0c2238);
+  --scorebug-flag-away: linear-gradient(180deg, #dce6f0, #9aaabd);
+  --scorebug-flag-home: linear-gradient(180deg, #6f8fb5, #41688f);
+  --scorebug-score-box:
+    linear-gradient(180deg, #eff4f8, #d6dee8);
+  --scorebug-score-border: rgba(17, 33, 48, 0.16);
+  --scorebug-footer-bg: rgba(8, 20, 31, 0.7);
+  --scorebug-footer-border: rgba(227, 235, 242, 0.08);
+  --scorebug-team-name: #edf4fa;
+  --scorebug-team-location: rgba(232, 241, 248, 0.68);
+  --scorebug-series: rgba(236, 243, 249, 0.9);
+}
+
+.scoreboard-card[data-style="minimal"] {
+  --scorebug-radius: 10px;
+  --scorebug-border: rgba(255, 255, 255, 0.05);
+  --scorebug-background: rgba(6, 11, 18, 0.84);
+  --scorebug-shadow: 0 12px 26px rgba(0, 0, 0, 0.24);
+  --scorebug-header-background: rgba(255, 255, 255, 0.04);
+  --scorebug-header-border: rgba(255, 255, 255, 0.05);
+  --scorebug-card-sheen: linear-gradient(90deg, rgba(255, 255, 255, 0.015), transparent 45%);
+  --scorebug-rail: linear-gradient(90deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05));
+  --scorebug-status-detail: rgba(255, 255, 255, 0.88);
+  --scorebug-row-border: rgba(255, 255, 255, 0.05);
+  --scorebug-row-away-bg: rgba(255, 255, 255, 0.015);
+  --scorebug-row-home-bg: rgba(255, 255, 255, 0.015);
+  --scorebug-flag-away: linear-gradient(180deg, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0.12));
+  --scorebug-flag-home: linear-gradient(180deg, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0.12));
+  --scorebug-score-box: rgba(255, 255, 255, 0.04);
+  --scorebug-score-border: rgba(255, 255, 255, 0.05);
+  --scorebug-footer-display: none;
+  --scorebug-location-display: none;
+  --scorebug-emblem-display: none;
+  --scorebug-min-width: 320px;
+  --scorebug-row-height: 62px;
+  --scorebug-header-padding: 8px 12px;
+}
+
+.scoreboard-card[data-style="arena"] {
+  --scorebug-radius: 14px;
+  --scorebug-border: rgba(255, 196, 97, 0.16);
+  --scorebug-background:
+    radial-gradient(circle at top left, rgba(255, 187, 60, 0.12), transparent 28%),
+    linear-gradient(160deg, rgba(12, 14, 22, 0.98), rgba(27, 14, 20, 0.96));
+  --scorebug-shadow:
+    0 26px 58px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --scorebug-header-background:
+    linear-gradient(90deg, rgba(245, 182, 62, 0.14), rgba(214, 46, 56, 0.16)),
+    rgba(8, 8, 12, 0.9);
+  --scorebug-header-border: rgba(255, 196, 97, 0.12);
+  --scorebug-card-sheen:
+    linear-gradient(90deg, rgba(255, 187, 60, 0.08), transparent 20%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 30%);
+  --scorebug-rail: linear-gradient(90deg, rgba(255, 187, 60, 0.95), rgba(255, 187, 60, 0.14));
+  --scorebug-status-detail: #ffe0a1;
+  --scorebug-row-away-bg:
+    linear-gradient(90deg, rgba(255, 187, 60, 0.08), transparent 24%),
+    rgba(255, 255, 255, 0.015);
+  --scorebug-row-home-bg:
+    linear-gradient(90deg, rgba(214, 46, 56, 0.12), transparent 24%),
+    rgba(255, 255, 255, 0.015);
+  --scorebug-flag-away: linear-gradient(180deg, #ffca67, rgba(245, 182, 62, 0.44));
+  --scorebug-flag-home: linear-gradient(180deg, #ff616c, rgba(214, 46, 56, 0.54));
+  --scorebug-score-box:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 20%),
+    linear-gradient(180deg, #131722, #0f121a);
+  --scorebug-score-border: rgba(255, 196, 97, 0.12);
+  --scorebug-footer-bg: rgba(12, 10, 15, 0.84);
+  --scorebug-footer-border: rgba(255, 187, 60, 0.1);
+  --scorebug-team-name: #fff0cf;
+  --scorebug-team-location: rgba(255, 226, 176, 0.72);
+  --scorebug-series: rgba(255, 225, 166, 0.92);
+  --scorebug-row-height: 84px;
+  --scorebug-logo-size: 34px;
+}
+
+.scorebug-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 42px;
+  padding: var(--scorebug-header-padding);
+  background: var(--scorebug-header-background);
+  border-bottom: 1px solid var(--scorebug-header-border);
+}
+
+.status-pill {
+  min-width: 72px;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-align: center;
+  text-transform: uppercase;
+  color: #fff;
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.24);
+}
+
+.status-pill-live {
+  background: linear-gradient(180deg, var(--broadcast-red-strong), var(--broadcast-red));
+}
+
+.status-pill-intermission {
+  background: linear-gradient(180deg, #ef8f3b, #c96a23);
+}
+
+.status-pill-final {
+  background: linear-gradient(180deg, #d4dde8, #9baab9);
+  color: #111b24;
+}
+
+.status-pill-upcoming {
+  background: linear-gradient(180deg, #274566, #17314c);
+}
+
+.status-rail {
+  flex: 1;
+  height: 1px;
+  background: var(--scorebug-rail);
+}
+
+.status-detail {
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--scorebug-status-detail);
+  white-space: nowrap;
 }
 
 .scoreboard-main {
   display: grid;
-  grid-template-columns: minmax(92px, auto) minmax(110px, auto) minmax(92px, auto);
-  gap: 16px;
-  align-items: center;
 }
 
-.scoreboard-team {
+.scorebug-row {
+  display: grid;
+  grid-template-columns: 5px 52px minmax(0, 1fr) 76px;
+  align-items: center;
+  min-height: var(--scorebug-row-height);
+  padding: 0 12px 0 0;
+  position: relative;
+}
+
+.scorebug-row + .scorebug-row {
+  border-top: 1px solid var(--scorebug-row-border);
+}
+
+.scorebug-row-away {
+  background: var(--scorebug-row-away-bg);
+}
+
+.scorebug-row-home {
+  background: var(--scorebug-row-home-bg);
+}
+
+.team-flag {
+  align-self: stretch;
+  background: var(--scorebug-flag-away);
+}
+
+.scorebug-row-home .team-flag {
+  background: var(--scorebug-flag-home);
+}
+
+.team-emblem {
+  display: var(--scorebug-emblem-display);
+  justify-content: center;
+  padding-inline: 10px 8px;
+}
+
+.team-logo {
+  width: var(--scorebug-logo-size);
+  height: var(--scorebug-logo-size);
+  object-fit: contain;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.28));
+}
+
+.team-logo-fallback {
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-weight: 800;
+  font-size: 1.1rem;
+  letter-spacing: 0.08em;
+}
+
+.team-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.team-location {
+  display: var(--scorebug-location-display);
+  color: var(--scorebug-team-location);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.team-line {
   display: flex;
   align-items: baseline;
   gap: 10px;
-}
-
-.scoreboard-team-home {
-  justify-content: flex-end;
+  min-width: 0;
 }
 
 .team-code {
-  font-size: 1.8rem;
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-size: 1.9rem;
   font-weight: 800;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
+  flex: 0 0 auto;
 }
 
-.team-score {
-  font-size: 2.4rem;
-  font-weight: 800;
-  line-height: 1;
-}
-
-.scoreboard-status {
-  display: grid;
-  gap: 4px;
-  justify-items: center;
-  text-align: center;
-}
-
-.status-line {
-  font-size: 0.92rem;
+.team-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--scorebug-team-name);
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-size: 1rem;
   font-weight: 700;
   letter-spacing: 0.08em;
+  text-overflow: ellipsis;
   text-transform: uppercase;
-  color: var(--accent);
-}
-
-.series-line {
-  font-size: 0.78rem;
-  color: var(--muted);
   white-space: nowrap;
 }
 
+.team-score-box {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--scorebug-score-box);
+  border-left: 1px solid var(--scorebug-score-border);
+}
+
+.team-score {
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-size: 2.6rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.scorebug-footer {
+  display: var(--scorebug-footer-display);
+  padding: 8px 14px 10px;
+  background: var(--scorebug-footer-bg);
+  border-top: 1px solid var(--scorebug-footer-border);
+}
+
+.series-line {
+  color: var(--scorebug-series);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.scoreboard-card[data-style="classic"] .status-pill-live {
+  background: linear-gradient(180deg, #244a77, #183556);
+}
+
+.scoreboard-card[data-style="classic"] .status-pill-intermission {
+  background: linear-gradient(180deg, #87a1bd, #5d7691);
+}
+
+.scoreboard-card[data-style="classic"] .status-pill-upcoming {
+  background: linear-gradient(180deg, #d7e0e8, #bcc9d6);
+  color: #142334;
+}
+
+.scoreboard-card[data-style="classic"] .team-score {
+  color: #112134;
+}
+
+.scoreboard-card[data-style="minimal"] .scorebug-header {
+  gap: 10px;
+}
+
+.scoreboard-card[data-style="minimal"] .scorebug-row {
+  grid-template-columns: 4px minmax(0, 1fr) 58px;
+  padding-right: 0;
+}
+
+.scoreboard-card[data-style="minimal"] .team-line {
+  gap: 8px;
+}
+
+.scoreboard-card[data-style="minimal"] .team-code {
+  font-size: 1.55rem;
+}
+
+.scoreboard-card[data-style="minimal"] .team-name {
+  font-size: 0.9rem;
+}
+
+.scoreboard-card[data-style="minimal"] .team-score {
+  font-size: 2rem;
+}
+
+.scoreboard-card[data-style="minimal"] .status-pill {
+  min-width: 64px;
+  padding: 5px 10px;
+}
+
+.scoreboard-card[data-style="minimal"] .status-pill-live {
+  background: linear-gradient(180deg, #f2f2f2, #c9c9c9);
+  color: #121212;
+}
+
+.scoreboard-card[data-style="minimal"] .status-pill-intermission,
+.scoreboard-card[data-style="minimal"] .status-pill-final,
+.scoreboard-card[data-style="minimal"] .status-pill-upcoming {
+  background: linear-gradient(180deg, #515861, #313841);
+  color: #f5f7fa;
+}
+
+.scoreboard-card[data-style="arena"] .status-pill-live {
+  background: linear-gradient(180deg, #ff6b75, #df3642);
+}
+
+.scoreboard-card[data-style="arena"] .status-pill-intermission {
+  background: linear-gradient(180deg, #f4b156, #d88622);
+}
+
+.scoreboard-card[data-style="arena"] .status-pill-final {
+  background: linear-gradient(180deg, #ffd58e, #efb557);
+  color: #241508;
+}
+
+.scoreboard-card[data-style="arena"] .status-pill-upcoming {
+  background: linear-gradient(180deg, #47331b, #2d2116);
+  color: #ffdca0;
+}
+
 .scoreboard-empty {
-  min-width: 280px;
+  min-width: 300px;
   text-align: center;
   color: var(--muted);
-  padding: 18px 22px;
+  padding: 24px 22px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 @media (max-width: 900px) {
@@ -288,14 +669,32 @@ textarea {
     width: 100%;
   }
 
-  .scoreboard-main {
-    grid-template-columns: 1fr;
-    justify-items: center;
+  .scorebug-header {
+    gap: 10px;
   }
 
-  .scoreboard-team,
-  .scoreboard-team-home {
-    justify-content: center;
+  .status-detail {
+    font-size: 0.92rem;
+  }
+
+  .scorebug-row {
+    grid-template-columns: 5px 42px minmax(0, 1fr) 64px;
+    min-height: 72px;
+  }
+
+  .scoreboard-card[data-style="minimal"] .scorebug-row {
+    grid-template-columns: 4px minmax(0, 1fr) 54px;
+  }
+
+  .team-code {
+    font-size: 1.7rem;
+  }
+
+  .team-name {
+    font-size: 0.9rem;
+  }
+
+  .team-score {
+    font-size: 2.25rem;
   }
 }
-

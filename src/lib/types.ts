@@ -1,9 +1,11 @@
 export type AppMode = 'auto' | 'manual';
+export type OverlayStyle = 'broadcast' | 'classic' | 'minimal' | 'arena';
 
 export type TeamChoice = 'AUTO' | string;
 
 export interface OverlayConfig {
   mode: AppMode;
+  style: OverlayStyle;
   team: TeamChoice;
   gameId?: number;
   playoffsOnly: boolean;
@@ -90,4 +92,3 @@ export interface DataSnapshot {
   schedule: ScheduleResponse | null;
   score: ScoreResponse | null;
 }
-

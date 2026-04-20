@@ -52,24 +52,50 @@ export function formatGameLabel(game: NhlGame): string {
   return `${away} @ ${home} · ${startTime}`;
 }
 
-export function getStatusLine(game: NhlGame, showClock: boolean): string {
+export function getStatusBadge(game: NhlGame): string {
+  if (isLiveGame(game)) {
+    const clock = game.clock;
+
+    if (clock?.inIntermission) {
+      return 'INT';
+    }
+
+    return 'LIVE';
+  }
+
+  if (isFinalGame(game)) {
+    return 'FINAL';
+  }
+
+  return 'UP NEXT';
+}
+
+export function getStatusDetail(game: NhlGame, showClock: boolean): string {
   if (isLiveGame(game)) {
     const clock = game.clock;
     const period = formatPeriodLabel(game);
 
     if (clock?.inIntermission) {
-      return period ? `INT · ${period}` : 'INT';
+      return period ? `${period} INTERMISSION` : 'INTERMISSION';
     }
 
     if (showClock && clock?.timeRemaining) {
-      return period ? `${period} · ${clock.timeRemaining}` : clock.timeRemaining;
+      return period ? `${period} • ${clock.timeRemaining}` : clock.timeRemaining;
     }
 
-    return period ? `LIVE · ${period}` : 'LIVE';
+    return period ? `${period} PERIOD` : 'IN PROGRESS';
   }
 
   if (isFinalGame(game)) {
-    return 'FINAL';
+    if (game.periodDescriptor?.periodType === 'OT') {
+      return 'OVERTIME';
+    }
+
+    if (game.periodDescriptor?.periodType === 'SO') {
+      return 'SHOOTOUT';
+    }
+
+    return 'REGULATION';
   }
 
   return formatStartTime(game.startTimeUTC);
@@ -82,6 +108,19 @@ export function getSeriesLine(game: NhlGame): string | null {
     return null;
   }
 
-  return `${series.topSeedTeamAbbrev} ${series.topSeedWins}-${series.bottomSeedWins} ${series.bottomSeedTeamAbbrev}`;
-}
+  const parts: string[] = [];
 
+  if (series.seriesAbbrev) {
+    parts.push(series.seriesAbbrev);
+  }
+
+  if (series.gameNumberOfSeries) {
+    parts.push(`Game ${series.gameNumberOfSeries}`);
+  }
+
+  parts.push(
+    `${series.topSeedTeamAbbrev} ${series.topSeedWins}-${series.bottomSeedWins} ${series.bottomSeedTeamAbbrev}`,
+  );
+
+  return parts.join(' • ');
+}

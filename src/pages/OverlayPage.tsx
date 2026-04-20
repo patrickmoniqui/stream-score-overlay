@@ -14,10 +14,10 @@ export function OverlayPage() {
         <ScoreboardCard
           game={data.selectedGame}
           showClock={config.showClock}
+          style={config.style}
           className="overlay-card"
         />
       )}
     </main>
   );
 }
-
