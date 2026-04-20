@@ -1,0 +1,30 @@
+{
+  "name": "nhl-live-feed",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:frontend:worker": "cross-env USE_LOCAL_WORKER=1 vite",
+    "dev:all": "concurrently -k -n worker,app -c blue,green \"npm run dev:worker\" \"npm run dev:frontend:worker\"",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "dev:worker": "wrangler dev --config worker/wrangler.toml --port 8787",
+    "deploy:worker": "wrangler deploy --config worker/wrangler.toml"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "typescript": "^5.0.0",
+    "vite": "^7.0.0",
+    "wrangler": "^4.0.0"
+  }
+}
