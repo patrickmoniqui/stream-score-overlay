@@ -7,10 +7,10 @@ enabled = true
 head_sampling_rate = 0.01
 
 # Uncomment after creating your D1 database.
-# [[d1_databases]]
-# binding = "ANALYTICS_DB"
-# database_name = "nhl-live-feed-analytics"
-# database_id = "<your-d1-database-id>"
+ [[d1_databases]]
+ binding = "ANALYTICS_DB"
+ database_name = "nhl-live-feed-analytics"
+ database_id = "c1bb52a8-00d8-4d2d-8279-45de6329da2c"
 
 [vars]
 TWITCH_GATE_ENABLED = "false"
