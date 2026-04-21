@@ -83,13 +83,18 @@ export function storeAdminToken(token: string): void {
   storage.setItem(ADMIN_TOKEN_STORAGE_KEY, normalizedToken);
 }
 
+export function getAnalyticsSummaryUrl(days: number): string {
+  const url = new URL(`${getApiBaseUrl()}/analytics/summary`, window.location.origin);
+  url.searchParams.set('days', String(days));
+  return url.toString();
+}
+
 export async function fetchAnalyticsSummary(
   token: string,
   days: number,
   signal?: AbortSignal,
 ): Promise<AnalyticsSummary> {
-  const url = new URL(`${getApiBaseUrl()}/analytics/summary`, window.location.origin);
-  url.searchParams.set('days', String(days));
+  const url = new URL(getAnalyticsSummaryUrl(days));
 
   const response = await fetch(url, {
     headers: {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   fetchAnalyticsSummary,
+  getAnalyticsSummaryUrl,
   getStoredAdminToken,
   storeAdminToken,
   type AnalyticsBreakdownEntry,
@@ -11,6 +12,15 @@ const DAY_WINDOW_OPTIONS = [7, 14, 30, 90];
 
 function formatNumber(value: number): string {
   return new Intl.NumberFormat().format(value);
+}
+
+function hasTrackedEvents(summary: AnalyticsSummary): boolean {
+  return (
+    summary.totals.uniqueUsers > 0 ||
+    summary.totals.settingsViews > 0 ||
+    summary.totals.overlayLinkCopies > 0 ||
+    summary.totals.overlayLoads > 0
+  );
 }
 
 function formatBreakdownLabel(groupKey: string, rawValue: string): string {
@@ -93,6 +103,7 @@ export function AdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const summaryUrl = getAnalyticsSummaryUrl(windowDays);
 
   useEffect(() => {
     if (!activeToken) {
@@ -229,6 +240,9 @@ export function AdminPage() {
             ) : null}
             {error ? <p className="helper-text helper-error">{error}</p> : null}
             <p className="helper-text">
+              Summary endpoint: <code>{summaryUrl}</code>
+            </p>
+            <p className="helper-text">
               Privacy note: this dashboard stores country, city, timezone, browser,
               platform, and network organization for aggregate reporting. Raw IP
               addresses are not stored.
@@ -249,6 +263,24 @@ export function AdminPage() {
         <div className="admin-content-panel">
           {summary ? (
             <>
+              {!hasTrackedEvents(summary) ? (
+                <section className="admin-empty-state">
+                  <div className="admin-section-heading">
+                    <p className="admin-section-kicker">Summary</p>
+                    <h2>Worker connected, but no events yet</h2>
+                  </div>
+                  <p className="helper-text">
+                    The admin token worked and the summary endpoint responded, but
+                    there are no recorded analytics rows in the selected window.
+                  </p>
+                  <p className="helper-text">
+                    Open the settings page from the same deployment, copy an overlay
+                    link, then load that overlay URL once in a browser or OBS. The
+                    admin page itself does not generate analytics events.
+                  </p>
+                </section>
+              ) : null}
+
               <section className="admin-totals-grid">
                 <article className="admin-total-card">
                   <p className="admin-total-label">Unique users</p>
@@ -428,9 +460,30 @@ export function AdminPage() {
                 <p className="admin-section-kicker">Summary</p>
                 <h2>Stats will appear here</h2>
               </div>
-              <p className="helper-text">
-                Load your analytics token to query the protected Worker endpoint.
-              </p>
+              {!activeToken ? (
+                <p className="helper-text">
+                  Load your analytics token to query the protected Worker endpoint.
+                </p>
+              ) : loading ? (
+                <p className="helper-text">
+                  Querying the Worker summary endpoint now.
+                </p>
+              ) : error ? (
+                <>
+                  <p className="helper-text">
+                    The dashboard could not load analytics from the Worker.
+                  </p>
+                  <p className="helper-text">
+                    Check that `VITE_API_BASE_URL` points to your deployed Worker,
+                    `ANALYTICS_DB` is bound, the D1 schema has been applied, and
+                    `ANALYTICS_READ_TOKEN` matches the deployed secret.
+                  </p>
+                </>
+              ) : (
+                <p className="helper-text">
+                  Save your token to load the current analytics summary.
+                </p>
+              )}
             </section>
           )}
         </div>
