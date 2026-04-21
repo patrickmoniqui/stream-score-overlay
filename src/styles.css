@@ -215,6 +215,7 @@ textarea {
 
 .admin-auth-panel,
 .admin-content-panel,
+.admin-group-panel,
 .admin-breakdown-card,
 .admin-empty-state,
 .admin-total-card,
@@ -227,6 +228,7 @@ textarea {
 
 .admin-auth-panel,
 .admin-content-panel,
+.admin-group-panel,
 .admin-breakdown-card,
 .admin-empty-state,
 .admin-status-card {
@@ -236,6 +238,32 @@ textarea {
 .admin-content-panel {
   display: grid;
   gap: 20px;
+}
+
+.admin-group-panel {
+  display: grid;
+  gap: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 28%),
+    rgba(9, 21, 34, 0.88);
+}
+
+.admin-group-panel.is-overview {
+  background:
+    radial-gradient(circle at top left, rgba(245, 182, 62, 0.12), transparent 34%),
+    rgba(9, 21, 34, 0.92);
+}
+
+.admin-group-panel.is-analytics {
+  background:
+    radial-gradient(circle at top left, rgba(76, 201, 240, 0.12), transparent 34%),
+    rgba(9, 21, 34, 0.92);
+}
+
+.admin-group-panel.is-settings {
+  background:
+    radial-gradient(circle at top left, rgba(214, 46, 56, 0.1), transparent 34%),
+    rgba(9, 21, 34, 0.92);
 }
 
 .admin-section-heading {
@@ -249,6 +277,13 @@ textarea {
   font-size: clamp(1.4rem, 2vw, 2rem);
   line-height: 1;
   letter-spacing: 0.03em;
+}
+
+.admin-section-copy {
+  margin: 12px 0 0;
+  max-width: 720px;
+  color: var(--muted);
+  line-height: 1.6;
 }
 
 .admin-section-kicker {
@@ -290,6 +325,42 @@ textarea {
     rgba(10, 25, 41, 0.76);
 }
 
+.admin-metric-groups {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-metric-group {
+  padding: 18px;
+  border: 1px solid rgba(196, 219, 245, 0.12);
+  border-radius: 20px;
+  background: rgba(8, 19, 31, 0.62);
+}
+
+.admin-metric-kicker {
+  margin: 0 0 6px;
+  color: var(--accent);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.admin-metric-group-title {
+  margin: 0;
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-size: clamp(1.3rem, 2vw, 1.8rem);
+  line-height: 1;
+  letter-spacing: 0.03em;
+}
+
+.admin-metric-group-copy {
+  margin: 10px 0 18px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
 .admin-totals-grid {
   display: grid;
   gap: 16px;
@@ -324,6 +395,23 @@ textarea {
   display: grid;
   gap: 16px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.admin-breakdown-card {
+  background: rgba(8, 19, 31, 0.7);
+}
+
+.admin-breakdown-card.is-audience {
+  background:
+    linear-gradient(180deg, rgba(76, 201, 240, 0.08), transparent 42%),
+    rgba(8, 19, 31, 0.76);
+}
+
+.admin-breakdown-card.is-settings {
+  background:
+    linear-gradient(180deg, rgba(245, 182, 62, 0.08), transparent 42%),
+    rgba(8, 19, 31, 0.76);
 }
 
 .admin-table-wrap {
@@ -349,6 +437,11 @@ textarea {
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.admin-table th:last-child,
+.admin-table td:last-child {
+  text-align: right;
 }
 
 .admin-table td {
@@ -1673,6 +1766,7 @@ textarea {
   }
 
   .admin-shell,
+  .admin-metric-groups,
   .admin-breakdown-grid,
   .admin-totals-grid {
     grid-template-columns: 1fr;
@@ -1703,6 +1797,7 @@ textarea {
   .preview-panel,
   .admin-auth-panel,
   .admin-content-panel,
+  .admin-group-panel,
   .admin-breakdown-card,
   .admin-empty-state,
   .admin-total-card,

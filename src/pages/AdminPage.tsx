@@ -55,17 +55,25 @@ function BreakdownTable({
   entries,
   emptyLabel,
   groupKey,
+  kicker,
+  tone = 'settings',
   title,
 }: {
   entries: AnalyticsBreakdownEntry[];
   emptyLabel: string;
   groupKey: string;
+  kicker: string;
+  tone?: 'audience' | 'settings';
   title: string;
 }) {
   return (
-    <section className="admin-breakdown-card">
+    <section
+      className={`admin-breakdown-card ${
+        tone === 'audience' ? 'is-audience' : 'is-settings'
+      }`}
+    >
       <div className="admin-section-heading">
-        <p className="admin-section-kicker">Settings</p>
+        <p className="admin-section-kicker">{kicker}</p>
         <h3>{title}</h3>
       </div>
       {entries.length ? (
@@ -281,49 +289,86 @@ export function AdminPage() {
                 </section>
               ) : null}
 
-              <section className="admin-totals-grid">
-                <article className="admin-total-card">
-                  <p className="admin-total-label">Unique users</p>
-                  <p className="admin-total-value">
-                    {formatNumber(summary.totals.uniqueUsers)}
+              <section className="admin-group-panel is-overview">
+                <div className="admin-section-heading">
+                  <p className="admin-section-kicker">Overview</p>
+                  <h2>Usage snapshot</h2>
+                  <p className="admin-section-copy">
+                    Start here for the quick read: how many installs reached the
+                    app, how many copied an overlay link, and how many actually
+                    loaded it.
                   </p>
-                </article>
-                <article className="admin-total-card">
-                  <p className="admin-total-label">Settings users</p>
-                  <p className="admin-total-value">
-                    {formatNumber(summary.totals.settingsUsers)}
-                  </p>
-                </article>
-                <article className="admin-total-card">
-                  <p className="admin-total-label">Overlay users</p>
-                  <p className="admin-total-value">
-                    {formatNumber(summary.totals.overlayUsers)}
-                  </p>
-                </article>
-                <article className="admin-total-card">
-                  <p className="admin-total-label">Settings views</p>
-                  <p className="admin-total-value">
-                    {formatNumber(summary.totals.settingsViews)}
-                  </p>
-                </article>
-                <article className="admin-total-card">
-                  <p className="admin-total-label">Link copies</p>
-                  <p className="admin-total-value">
-                    {formatNumber(summary.totals.overlayLinkCopies)}
-                  </p>
-                </article>
-                <article className="admin-total-card">
-                  <p className="admin-total-label">Overlay loads</p>
-                  <p className="admin-total-value">
-                    {formatNumber(summary.totals.overlayLoads)}
-                  </p>
-                </article>
+                </div>
+
+                <div className="admin-metric-groups">
+                  <section className="admin-metric-group">
+                    <p className="admin-metric-kicker">Users</p>
+                    <h3 className="admin-metric-group-title">Reach</h3>
+                    <p className="admin-metric-group-copy">
+                      Distinct installs that touched the settings page or made it
+                      through to an overlay load in the selected window.
+                    </p>
+                    <div className="admin-totals-grid">
+                      <article className="admin-total-card">
+                        <p className="admin-total-label">Unique users</p>
+                        <p className="admin-total-value">
+                          {formatNumber(summary.totals.uniqueUsers)}
+                        </p>
+                      </article>
+                      <article className="admin-total-card">
+                        <p className="admin-total-label">Settings users</p>
+                        <p className="admin-total-value">
+                          {formatNumber(summary.totals.settingsUsers)}
+                        </p>
+                      </article>
+                      <article className="admin-total-card">
+                        <p className="admin-total-label">Overlay users</p>
+                        <p className="admin-total-value">
+                          {formatNumber(summary.totals.overlayUsers)}
+                        </p>
+                      </article>
+                    </div>
+                  </section>
+
+                  <section className="admin-metric-group">
+                    <p className="admin-metric-kicker">Actions</p>
+                    <h3 className="admin-metric-group-title">Engagement</h3>
+                    <p className="admin-metric-group-copy">
+                      These counts show what people actually did after opening the
+                      app: view settings, copy a URL, and load the overlay.
+                    </p>
+                    <div className="admin-totals-grid">
+                      <article className="admin-total-card">
+                        <p className="admin-total-label">Settings views</p>
+                        <p className="admin-total-value">
+                          {formatNumber(summary.totals.settingsViews)}
+                        </p>
+                      </article>
+                      <article className="admin-total-card">
+                        <p className="admin-total-label">Link copies</p>
+                        <p className="admin-total-value">
+                          {formatNumber(summary.totals.overlayLinkCopies)}
+                        </p>
+                      </article>
+                      <article className="admin-total-card">
+                        <p className="admin-total-label">Overlay loads</p>
+                        <p className="admin-total-value">
+                          {formatNumber(summary.totals.overlayLoads)}
+                        </p>
+                      </article>
+                    </div>
+                  </section>
+                </div>
               </section>
 
-              <section className="admin-breakdown-card">
+              <section className="admin-group-panel is-activity">
                 <div className="admin-section-heading">
                   <p className="admin-section-kicker">Activity</p>
-                  <h3>Daily trend</h3>
+                  <h2>Daily trend</h2>
+                  <p className="admin-section-copy">
+                    Use this table to spot whether usage is growing, flat, or tied
+                    to specific stream days.
+                  </p>
                 </div>
                 {summary.daily.length ? (
                   <div className="admin-table-wrap">
@@ -355,103 +400,149 @@ export function AdminPage() {
                 )}
               </section>
 
-              <section className="admin-breakdown-grid">
-                <BreakdownTable
-                  entries={summary.settings.style}
-                  emptyLabel="No style selections yet."
-                  groupKey="style"
-                  title="Style"
-                />
-                <BreakdownTable
-                  entries={summary.settings.layout}
-                  emptyLabel="No layout selections yet."
-                  groupKey="layout"
-                  title="Layout"
-                />
-                <BreakdownTable
-                  entries={summary.settings.mode}
-                  emptyLabel="No mode selections yet."
-                  groupKey="mode"
-                  title="Mode"
-                />
-                <BreakdownTable
-                  entries={summary.settings.refreshSeconds}
-                  emptyLabel="No refresh settings yet."
-                  groupKey="refreshSeconds"
-                  title="Refresh interval"
-                />
-                <BreakdownTable
-                  entries={summary.settings.playoffsOnly}
-                  emptyLabel="No playoffs settings yet."
-                  groupKey="playoffsOnly"
-                  title="Playoffs filter"
-                />
-                <BreakdownTable
-                  entries={summary.settings.showClock}
-                  emptyLabel="No clock settings yet."
-                  groupKey="showClock"
-                  title="Clock"
-                />
-                <BreakdownTable
-                  entries={summary.settings.teamCount}
-                  emptyLabel="No team count settings yet."
-                  groupKey="teamCount"
-                  title="Team count"
-                />
-                <BreakdownTable
-                  entries={summary.settings.teams}
-                  emptyLabel="No team selections yet."
-                  groupKey="teams"
-                  title="Team selection"
-                />
-                <BreakdownTable
-                  entries={summary.settings.paths}
-                  emptyLabel="No paths recorded yet."
-                  groupKey="paths"
-                  title="Entry path"
-                />
-                <BreakdownTable
-                  entries={summary.audience.countries}
-                  emptyLabel="No country data yet."
-                  groupKey="countries"
-                  title="Countries"
-                />
-                <BreakdownTable
-                  entries={summary.audience.regions}
-                  emptyLabel="No region data yet."
-                  groupKey="regions"
-                  title="Regions"
-                />
-                <BreakdownTable
-                  entries={summary.audience.cities}
-                  emptyLabel="No city data yet."
-                  groupKey="cities"
-                  title="Cities"
-                />
-                <BreakdownTable
-                  entries={summary.audience.timezones}
-                  emptyLabel="No timezone data yet."
-                  groupKey="timezones"
-                  title="Timezones"
-                />
-                <BreakdownTable
-                  entries={summary.audience.browsers}
-                  emptyLabel="No browser data yet."
-                  groupKey="browsers"
-                  title="Browsers"
-                />
-                <BreakdownTable
-                  entries={summary.audience.platforms}
-                  emptyLabel="No platform data yet."
-                  groupKey="platforms"
-                  title="Platforms"
-                />
-                <BreakdownTable
-                  entries={summary.audience.networks}
-                  emptyLabel="No network data yet."
-                  groupKey="networks"
-                  title="Network organizations"
-                />
+              <section className="admin-group-panel is-analytics">
+                <div className="admin-section-heading">
+                  <p className="admin-section-kicker">Audience</p>
+                  <h2>User analytics</h2>
+                  <p className="admin-section-copy">
+                    Aggregate viewer environment data captured by the Worker:
+                    geography, platform, browser family, and network organization.
+                  </p>
+                </div>
+                <section className="admin-breakdown-grid">
+                  <BreakdownTable
+                    entries={summary.audience.countries}
+                    emptyLabel="No country data yet."
+                    groupKey="countries"
+                    kicker="Audience"
+                    title="Countries"
+                    tone="audience"
+                  />
+                  <BreakdownTable
+                    entries={summary.audience.regions}
+                    emptyLabel="No region data yet."
+                    groupKey="regions"
+                    kicker="Audience"
+                    title="Regions"
+                    tone="audience"
+                  />
+                  <BreakdownTable
+                    entries={summary.audience.cities}
+                    emptyLabel="No city data yet."
+                    groupKey="cities"
+                    kicker="Audience"
+                    title="Cities"
+                    tone="audience"
+                  />
+                  <BreakdownTable
+                    entries={summary.audience.timezones}
+                    emptyLabel="No timezone data yet."
+                    groupKey="timezones"
+                    kicker="Audience"
+                    title="Timezones"
+                    tone="audience"
+                  />
+                  <BreakdownTable
+                    entries={summary.audience.browsers}
+                    emptyLabel="No browser data yet."
+                    groupKey="browsers"
+                    kicker="Audience"
+                    title="Browsers"
+                    tone="audience"
+                  />
+                  <BreakdownTable
+                    entries={summary.audience.platforms}
+                    emptyLabel="No platform data yet."
+                    groupKey="platforms"
+                    kicker="Audience"
+                    title="Platforms"
+                    tone="audience"
+                  />
+                  <BreakdownTable
+                    entries={summary.audience.networks}
+                    emptyLabel="No network data yet."
+                    groupKey="networks"
+                    kicker="Audience"
+                    title="Network organizations"
+                    tone="audience"
+                  />
+                </section>
+              </section>
+
+              <section className="admin-group-panel is-settings">
+                <div className="admin-section-heading">
+                  <p className="admin-section-kicker">Configuration</p>
+                  <h2>User settings</h2>
+                  <p className="admin-section-copy">
+                    These breakdowns show the latest saved overlay preferences per
+                    install, so you can see which setups people actually prefer.
+                  </p>
+                </div>
+                <section className="admin-breakdown-grid">
+                  <BreakdownTable
+                    entries={summary.settings.style}
+                    emptyLabel="No style selections yet."
+                    groupKey="style"
+                    kicker="Settings"
+                    title="Style"
+                  />
+                  <BreakdownTable
+                    entries={summary.settings.layout}
+                    emptyLabel="No layout selections yet."
+                    groupKey="layout"
+                    kicker="Settings"
+                    title="Layout"
+                  />
+                  <BreakdownTable
+                    entries={summary.settings.mode}
+                    emptyLabel="No mode selections yet."
+                    groupKey="mode"
+                    kicker="Settings"
+                    title="Mode"
+                  />
+                  <BreakdownTable
+                    entries={summary.settings.refreshSeconds}
+                    emptyLabel="No refresh settings yet."
+                    groupKey="refreshSeconds"
+                    kicker="Settings"
+                    title="Refresh interval"
+                  />
+                  <BreakdownTable
+                    entries={summary.settings.playoffsOnly}
+                    emptyLabel="No playoffs settings yet."
+                    groupKey="playoffsOnly"
+                    kicker="Settings"
+                    title="Playoffs filter"
+                  />
+                  <BreakdownTable
+                    entries={summary.settings.showClock}
+                    emptyLabel="No clock settings yet."
+                    groupKey="showClock"
+                    kicker="Settings"
+                    title="Clock"
+                  />
+                  <BreakdownTable
+                    entries={summary.settings.teamCount}
+                    emptyLabel="No team count settings yet."
+                    groupKey="teamCount"
+                    kicker="Settings"
+                    title="Team count"
+                  />
+                  <BreakdownTable
+                    entries={summary.settings.teams}
+                    emptyLabel="No team selections yet."
+                    groupKey="teams"
+                    kicker="Settings"
+                    title="Team selection"
+                  />
+                  <BreakdownTable
+                    entries={summary.settings.paths}
+                    emptyLabel="No paths recorded yet."
+                    groupKey="paths"
+                    kicker="Settings"
+                    title="Entry path"
+                  />
+                </section>
               </section>
             </>
           ) : (
