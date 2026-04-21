@@ -20,7 +20,12 @@ import {
 } from '../lib/analytics';
 import { findPreviousFinalGame } from '../lib/gameSelection';
 import { useOverlayData } from '../lib/useOverlayData';
-import { buildOverlayUrl, parseConfig } from '../lib/urlState';
+import {
+  MAX_REFRESH_SECONDS,
+  MIN_REFRESH_SECONDS,
+  buildOverlayUrl,
+  parseConfig,
+} from '../lib/urlState';
 import type { OverlayConfig } from '../lib/types';
 
 const SELECTABLE_NHL_TEAMS = NHL_TEAMS.filter((team) => team.abbrev !== 'AUTO');
@@ -335,8 +340,8 @@ export function SettingsPage() {
             <input
               className="range-input"
               type="range"
-              min="1"
-              max="60"
+              min={String(MIN_REFRESH_SECONDS)}
+              max={String(MAX_REFRESH_SECONDS)}
               step="1"
               value={config.refreshSeconds}
               onChange={(event) =>
@@ -347,8 +352,8 @@ export function SettingsPage() {
               }
             />
             <small className="field-hint">
-              Controls how often the overlay checks for score updates. Lower values
-              refresh faster.
+              Controls how often the overlay checks for score updates. The minimum
+              is {MIN_REFRESH_SECONDS}s to protect the Worker request budget.
             </small>
           </div>
 

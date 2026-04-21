@@ -4,6 +4,7 @@ import type {
   ScheduleResponse,
   ScoreResponse,
 } from './types';
+import { MIN_REFRESH_SECONDS } from './urlState';
 
 const LIVE_STATES = new Set(['LIVE', 'CRIT']);
 const UPCOMING_STATES = new Set(['PRE', 'FUT']);
@@ -144,7 +145,7 @@ export function selectGame(
 }
 
 export function getRefreshInterval(refreshSeconds: number): number {
-  return Math.max(1, refreshSeconds) * 1_000;
+  return Math.max(MIN_REFRESH_SECONDS, refreshSeconds) * 1_000;
 }
 
 export function findPreviousFinalGame(

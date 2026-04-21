@@ -1,0 +1,440 @@
+import { useEffect, useState } from 'react';
+import {
+  fetchAnalyticsSummary,
+  getStoredAdminToken,
+  storeAdminToken,
+  type AnalyticsBreakdownEntry,
+  type AnalyticsSummary,
+} from '../lib/adminAnalytics';
+
+const DAY_WINDOW_OPTIONS = [7, 14, 30, 90];
+
+function formatNumber(value: number): string {
+  return new Intl.NumberFormat().format(value);
+}
+
+function formatBreakdownLabel(groupKey: string, rawValue: string): string {
+  if (groupKey === 'playoffsOnly') {
+    return rawValue === '1' ? 'Playoffs only' : 'All games';
+  }
+
+  if (groupKey === 'showClock') {
+    return rawValue === '1' ? 'Clock on' : 'Clock off';
+  }
+
+  if (groupKey === 'refreshSeconds') {
+    return `${rawValue}s`;
+  }
+
+  if (groupKey === 'teamCount') {
+    return rawValue === '0' ? 'Auto schedule' : `${rawValue} teams`;
+  }
+
+  if (groupKey === 'teams') {
+    return rawValue === 'AUTO' ? 'Auto schedule' : rawValue;
+  }
+
+  if (groupKey === 'paths') {
+    return rawValue === '/game-score/' ? '/game-score/' : rawValue;
+  }
+
+  return rawValue;
+}
+
+function BreakdownTable({
+  entries,
+  emptyLabel,
+  groupKey,
+  title,
+}: {
+  entries: AnalyticsBreakdownEntry[];
+  emptyLabel: string;
+  groupKey: string;
+  title: string;
+}) {
+  return (
+    <section className="admin-breakdown-card">
+      <div className="admin-section-heading">
+        <p className="admin-section-kicker">Settings</p>
+        <h3>{title}</h3>
+      </div>
+      {entries.length ? (
+        <div className="admin-table-wrap">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Value</th>
+                <th>Users</th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map((entry) => (
+                <tr key={`${groupKey}-${entry.value}`}>
+                  <td>{formatBreakdownLabel(groupKey, entry.value)}</td>
+                  <td>{formatNumber(entry.count)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="helper-text">{emptyLabel}</p>
+      )}
+    </section>
+  );
+}
+
+export function AdminPage() {
+  const [tokenInput, setTokenInput] = useState(() => getStoredAdminToken());
+  const [activeToken, setActiveToken] = useState(() => getStoredAdminToken());
+  const [windowDays, setWindowDays] = useState(30);
+  const [refreshNonce, setRefreshNonce] = useState(0);
+  const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!activeToken) {
+      setSummary(null);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setLoading(true);
+    setError(null);
+
+    void fetchAnalyticsSummary(activeToken, windowDays, controller.signal)
+      .then((nextSummary) => {
+        setSummary(nextSummary);
+        setLastUpdated(new Date().toLocaleString());
+        setError(null);
+      })
+      .catch((fetchError) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        setSummary(null);
+        setError(
+          fetchError instanceof Error
+            ? fetchError.message
+            : 'Unable to load analytics.',
+        );
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      });
+
+    return () => controller.abort();
+  }, [activeToken, refreshNonce, windowDays]);
+
+  function saveToken() {
+    const normalizedToken = tokenInput.trim();
+    storeAdminToken(normalizedToken);
+    setActiveToken(normalizedToken);
+    setRefreshNonce((currentValue) => currentValue + 1);
+  }
+
+  function clearToken() {
+    storeAdminToken('');
+    setTokenInput('');
+    setActiveToken('');
+    setSummary(null);
+    setError(null);
+    setLastUpdated(null);
+  }
+
+  function refreshSummary() {
+    setRefreshNonce((currentValue) => currentValue + 1);
+  }
+
+  return (
+    <main className="admin-page">
+      <section className="admin-hero">
+        <p className="eyebrow">Private Analytics</p>
+        <h1>Admin dashboard</h1>
+        <p className="header-copy admin-hero-copy">
+          This page reads the protected analytics summary from your Worker. The
+          bearer token stays in your browser and is never bundled into the public
+          app.
+        </p>
+      </section>
+
+      <section className="admin-shell">
+        <div className="admin-auth-panel">
+          <div className="admin-section-heading">
+            <p className="admin-section-kicker">Access</p>
+            <h2>Analytics token</h2>
+          </div>
+
+          <div className="field">
+            <span>Read token</span>
+            <input
+              className="admin-input"
+              type="password"
+              value={tokenInput}
+              onChange={(event) => setTokenInput(event.target.value)}
+              placeholder="Paste ANALYTICS_READ_TOKEN"
+              autoComplete="current-password"
+            />
+            <p className="field-hint">
+              Stored only in this browser so you can reopen the dashboard without
+              typing it each time.
+            </p>
+          </div>
+
+          <div className="admin-toolbar">
+            <button className="primary-button" type="button" onClick={saveToken}>
+              Save token
+            </button>
+            <button className="secondary-button" type="button" onClick={clearToken}>
+              Clear token
+            </button>
+          </div>
+
+          <div className="field">
+            <div className="field-header">
+              <span>Window</span>
+              <span className="field-value">{windowDays} days</span>
+            </div>
+            <select
+              value={windowDays}
+              onChange={(event) => setWindowDays(Number(event.target.value))}
+              className="admin-select"
+            >
+              {DAY_WINDOW_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  Last {option} days
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="admin-status-card">
+            <p className="supporter-label">Status</p>
+            <p className="supporter-status">
+              {activeToken
+                ? loading
+                  ? 'Loading analytics from the Worker.'
+                  : 'Token loaded. Dashboard can query the summary endpoint.'
+                : 'No token loaded yet.'}
+            </p>
+            {lastUpdated ? (
+              <p className="helper-text">Last updated: {lastUpdated}</p>
+            ) : null}
+            {error ? <p className="helper-text helper-error">{error}</p> : null}
+            <p className="helper-text">
+              Privacy note: this dashboard stores country, city, timezone, browser,
+              platform, and network organization for aggregate reporting. Raw IP
+              addresses are not stored.
+            </p>
+            <div className="admin-toolbar">
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={refreshSummary}
+                disabled={!activeToken || loading}
+              >
+                Refresh
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="admin-content-panel">
+          {summary ? (
+            <>
+              <section className="admin-totals-grid">
+                <article className="admin-total-card">
+                  <p className="admin-total-label">Unique users</p>
+                  <p className="admin-total-value">
+                    {formatNumber(summary.totals.uniqueUsers)}
+                  </p>
+                </article>
+                <article className="admin-total-card">
+                  <p className="admin-total-label">Settings users</p>
+                  <p className="admin-total-value">
+                    {formatNumber(summary.totals.settingsUsers)}
+                  </p>
+                </article>
+                <article className="admin-total-card">
+                  <p className="admin-total-label">Overlay users</p>
+                  <p className="admin-total-value">
+                    {formatNumber(summary.totals.overlayUsers)}
+                  </p>
+                </article>
+                <article className="admin-total-card">
+                  <p className="admin-total-label">Settings views</p>
+                  <p className="admin-total-value">
+                    {formatNumber(summary.totals.settingsViews)}
+                  </p>
+                </article>
+                <article className="admin-total-card">
+                  <p className="admin-total-label">Link copies</p>
+                  <p className="admin-total-value">
+                    {formatNumber(summary.totals.overlayLinkCopies)}
+                  </p>
+                </article>
+                <article className="admin-total-card">
+                  <p className="admin-total-label">Overlay loads</p>
+                  <p className="admin-total-value">
+                    {formatNumber(summary.totals.overlayLoads)}
+                  </p>
+                </article>
+              </section>
+
+              <section className="admin-breakdown-card">
+                <div className="admin-section-heading">
+                  <p className="admin-section-kicker">Activity</p>
+                  <h3>Daily trend</h3>
+                </div>
+                {summary.daily.length ? (
+                  <div className="admin-table-wrap">
+                    <table className="admin-table">
+                      <thead>
+                        <tr>
+                          <th>Day</th>
+                          <th>Unique users</th>
+                          <th>Overlay loads</th>
+                          <th>Link copies</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {summary.daily.map((entry) => (
+                          <tr key={entry.day}>
+                            <td>{entry.day}</td>
+                            <td>{formatNumber(entry.uniqueUsers)}</td>
+                            <td>{formatNumber(entry.overlayLoads)}</td>
+                            <td>{formatNumber(entry.overlayLinkCopies)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="helper-text">
+                    No analytics events found in the selected window.
+                  </p>
+                )}
+              </section>
+
+              <section className="admin-breakdown-grid">
+                <BreakdownTable
+                  entries={summary.settings.style}
+                  emptyLabel="No style selections yet."
+                  groupKey="style"
+                  title="Style"
+                />
+                <BreakdownTable
+                  entries={summary.settings.layout}
+                  emptyLabel="No layout selections yet."
+                  groupKey="layout"
+                  title="Layout"
+                />
+                <BreakdownTable
+                  entries={summary.settings.mode}
+                  emptyLabel="No mode selections yet."
+                  groupKey="mode"
+                  title="Mode"
+                />
+                <BreakdownTable
+                  entries={summary.settings.refreshSeconds}
+                  emptyLabel="No refresh settings yet."
+                  groupKey="refreshSeconds"
+                  title="Refresh interval"
+                />
+                <BreakdownTable
+                  entries={summary.settings.playoffsOnly}
+                  emptyLabel="No playoffs settings yet."
+                  groupKey="playoffsOnly"
+                  title="Playoffs filter"
+                />
+                <BreakdownTable
+                  entries={summary.settings.showClock}
+                  emptyLabel="No clock settings yet."
+                  groupKey="showClock"
+                  title="Clock"
+                />
+                <BreakdownTable
+                  entries={summary.settings.teamCount}
+                  emptyLabel="No team count settings yet."
+                  groupKey="teamCount"
+                  title="Team count"
+                />
+                <BreakdownTable
+                  entries={summary.settings.teams}
+                  emptyLabel="No team selections yet."
+                  groupKey="teams"
+                  title="Team selection"
+                />
+                <BreakdownTable
+                  entries={summary.settings.paths}
+                  emptyLabel="No paths recorded yet."
+                  groupKey="paths"
+                  title="Entry path"
+                />
+                <BreakdownTable
+                  entries={summary.audience.countries}
+                  emptyLabel="No country data yet."
+                  groupKey="countries"
+                  title="Countries"
+                />
+                <BreakdownTable
+                  entries={summary.audience.regions}
+                  emptyLabel="No region data yet."
+                  groupKey="regions"
+                  title="Regions"
+                />
+                <BreakdownTable
+                  entries={summary.audience.cities}
+                  emptyLabel="No city data yet."
+                  groupKey="cities"
+                  title="Cities"
+                />
+                <BreakdownTable
+                  entries={summary.audience.timezones}
+                  emptyLabel="No timezone data yet."
+                  groupKey="timezones"
+                  title="Timezones"
+                />
+                <BreakdownTable
+                  entries={summary.audience.browsers}
+                  emptyLabel="No browser data yet."
+                  groupKey="browsers"
+                  title="Browsers"
+                />
+                <BreakdownTable
+                  entries={summary.audience.platforms}
+                  emptyLabel="No platform data yet."
+                  groupKey="platforms"
+                  title="Platforms"
+                />
+                <BreakdownTable
+                  entries={summary.audience.networks}
+                  emptyLabel="No network data yet."
+                  groupKey="networks"
+                  title="Network organizations"
+                />
+              </section>
+            </>
+          ) : (
+            <section className="admin-empty-state">
+              <div className="admin-section-heading">
+                <p className="admin-section-kicker">Summary</p>
+                <h2>Stats will appear here</h2>
+              </div>
+              <p className="helper-text">
+                Load your analytics token to query the protected Worker endpoint.
+              </p>
+            </section>
+          )}
+        </div>
+      </section>
+    </main>
+  );
+}

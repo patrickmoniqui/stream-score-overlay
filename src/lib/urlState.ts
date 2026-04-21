@@ -1,12 +1,15 @@
 import { isOverlayStyle } from './overlayStyles';
 import type { OverlayConfig } from './types';
 
+export const MIN_REFRESH_SECONDS = 10;
+export const MAX_REFRESH_SECONDS = 60;
+
 export const DEFAULT_CONFIG: OverlayConfig = {
   mode: 'auto',
   style: 'broadcast',
   layout: 'compact',
   teams: [],
-  refreshSeconds: 10,
+  refreshSeconds: MIN_REFRESH_SECONDS,
   playoffsOnly: true,
   showClock: true,
   muted: false,
@@ -40,7 +43,7 @@ function normalizeRefreshSeconds(value: string | null): number {
 
   const rounded = Math.round(parsed);
 
-  return Math.min(60, Math.max(1, rounded));
+  return Math.min(MAX_REFRESH_SECONDS, Math.max(MIN_REFRESH_SECONDS, rounded));
 }
 
 export function parseConfig(search: string): OverlayConfig {
@@ -78,10 +81,11 @@ export function parseConfig(search: string): OverlayConfig {
 
 export function buildOverlayUrl(config: OverlayConfig): string {
   const overlayUrl = new URL('./overlay.html', window.location.href);
+  const refreshSeconds = normalizeRefreshSeconds(String(config.refreshSeconds));
 
   overlayUrl.searchParams.set('style', config.style);
   overlayUrl.searchParams.set('layout', config.layout);
-  overlayUrl.searchParams.set('refresh', String(config.refreshSeconds));
+  overlayUrl.searchParams.set('refresh', String(refreshSeconds));
   overlayUrl.searchParams.set('playoffs', config.playoffsOnly ? '1' : '0');
   overlayUrl.searchParams.set('clock', config.showClock ? '1' : '0');
   overlayUrl.searchParams.set('mute', config.muted ? '1' : '0');

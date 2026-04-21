@@ -6,16 +6,32 @@
     <title>Keylight Stream Tools</title>
     <meta name="description" content="Keylight stream tools for OBS and browser sources." />
     <script>
-      const normalizedPath = window.location.pathname.endsWith('/')
-        ? window.location.pathname
-        : `${window.location.pathname}/`;
-      const isGameScorePath = normalizedPath.includes('/game-score/');
+      const pathname = window.location.pathname;
+      const pathSegments = pathname.split('/').filter(Boolean);
+      const trailingSegment = pathSegments[pathSegments.length - 1];
+      const needsDirectorySlash =
+        !pathname.endsWith('/') &&
+        ['admin', 'game-score'].includes(trailingSegment);
 
-      if (!isGameScorePath) {
-        const target = new URL('game-score/', window.location.href);
+      if (needsDirectorySlash) {
+        const target = new URL(`${trailingSegment}/`, window.location.href);
         target.search = window.location.search;
         target.hash = window.location.hash;
         window.location.replace(target.toString());
+      } else {
+        const normalizedPath = pathname.endsWith('/')
+          ? pathname
+          : `${pathname}/`;
+        const isKnownToolPath =
+          normalizedPath.includes('/game-score/') ||
+          normalizedPath.includes('/admin/');
+
+        if (!isKnownToolPath) {
+          const target = new URL('game-score/', window.location.href);
+          target.search = window.location.search;
+          target.hash = window.location.hash;
+          window.location.replace(target.toString());
+        }
       }
     </script>
   </head>

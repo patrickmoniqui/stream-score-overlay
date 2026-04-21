@@ -80,8 +80,12 @@ interface AnalyticsSettingsPayload {
 }
 
 interface AnalyticsEventRecord {
+  asOrganization: string;
+  browserFamily: string;
   appVersion: string | null;
   buildNumber: string | null;
+  city: string;
+  country: string;
   eventType: string;
   hasUnlock: number;
   installId: string;
@@ -89,12 +93,27 @@ interface AnalyticsEventRecord {
   mode: string;
   pathname: string;
   playoffsOnly: number;
+  platform: string;
   recordedAt: number;
   refreshSeconds: number;
+  region: string;
   showClock: number;
   style: string;
   teamCount: number;
   teamsKey: string;
+  timezone: string;
+}
+
+interface AnalyticsTableColumnRow {
+  name?: unknown;
+}
+
+interface WorkerRequestCfProperties {
+  asOrganization?: string | null;
+  city?: string | null;
+  country?: string | null;
+  region?: string | null;
+  timezone?: string | null;
 }
 
 const ANALYTICS_EVENT_TYPES = new Set([
@@ -220,6 +239,110 @@ function getCount(value: unknown): number {
   return Number.isFinite(numericValue) ? numericValue : 0;
 }
 
+function normalizeAnalyticsDimension(
+  value: string | null | undefined,
+  fallback = 'Unknown',
+  maxLength = 80,
+): string {
+  const normalized = value?.trim();
+
+  if (!normalized) {
+    return fallback;
+  }
+
+  return normalized.slice(0, maxLength);
+}
+
+function getRequestCfProperties(
+  request: Request,
+): WorkerRequestCfProperties | null {
+  const requestWithCf = request as Request & { cf?: WorkerRequestCfProperties };
+  return requestWithCf.cf ?? null;
+}
+
+function inferBrowserFamily(userAgent: string): string {
+  const normalizedUserAgent = userAgent.toLowerCase();
+
+  if (!normalizedUserAgent) {
+    return 'Unknown';
+  }
+
+  if (normalizedUserAgent.includes('obs')) {
+    return 'OBS Studio';
+  }
+
+  if (normalizedUserAgent.includes('edg/')) {
+    return 'Microsoft Edge';
+  }
+
+  if (normalizedUserAgent.includes('opr/') || normalizedUserAgent.includes('opera')) {
+    return 'Opera';
+  }
+
+  if (
+    normalizedUserAgent.includes('chrome/') &&
+    !normalizedUserAgent.includes('edg/') &&
+    !normalizedUserAgent.includes('opr/')
+  ) {
+    return 'Chrome';
+  }
+
+  if (
+    normalizedUserAgent.includes('safari/') &&
+    !normalizedUserAgent.includes('chrome/') &&
+    !normalizedUserAgent.includes('chromium/')
+  ) {
+    return 'Safari';
+  }
+
+  if (normalizedUserAgent.includes('firefox/')) {
+    return 'Firefox';
+  }
+
+  return 'Other';
+}
+
+function inferPlatform(userAgent: string): string {
+  const normalizedUserAgent = userAgent.toLowerCase();
+
+  if (!normalizedUserAgent) {
+    return 'Unknown';
+  }
+
+  if (normalizedUserAgent.includes('windows')) {
+    return 'Windows';
+  }
+
+  if (normalizedUserAgent.includes('android')) {
+    return 'Android';
+  }
+
+  if (
+    normalizedUserAgent.includes('iphone') ||
+    normalizedUserAgent.includes('ipad') ||
+    normalizedUserAgent.includes('ios')
+  ) {
+    return 'iOS';
+  }
+
+  if (
+    normalizedUserAgent.includes('mac os x') ||
+    normalizedUserAgent.includes('macintosh')
+  ) {
+    return 'macOS';
+  }
+
+  if (normalizedUserAgent.includes('cros')) {
+    return 'ChromeOS';
+  }
+
+  if (normalizedUserAgent.includes('linux')) {
+    return 'Linux';
+  }
+
+  return 'Other';
+}
+
 function getBearerToken(request: Request): string | null {
   const authorizationHeader = request.headers.get('Authorization');
 
@@ -236,15 +359,7 @@ function buildLatestAnalyticsBreakdownQuery(columnName: string): string {
     WITH latest_configs AS (
       SELECT
         install_id,
-        mode,
-        style,
-        layout,
-        refresh_seconds,
-        playoffs_only,
-        show_clock,
-        team_count,
-        teams_key,
-        pathname,
+        ${columnName} AS value,
         ROW_NUMBER() OVER (
           PARTITION BY install_id
           ORDER BY recorded_at DESC, id DESC
@@ -252,15 +367,18 @@ function buildLatestAnalyticsBreakdownQuery(columnName: string): string {
       FROM analytics_events
       WHERE recorded_at >= ?
     )
-    SELECT ${columnName} AS value, COUNT(*) AS count
+    SELECT value, COUNT(*) AS count
     FROM latest_configs
     WHERE row_number = 1
-    GROUP BY ${columnName}
+    GROUP BY value
     ORDER BY count DESC, value ASC
   `;
 }
 
-function parseAnalyticsEventRecord(payload: unknown): AnalyticsEventRecord | null {
+function parseAnalyticsEventRecord(
+  payload: unknown,
+  request: Request,
+): AnalyticsEventRecord | null {
   if (!payload || typeof payload !== 'object') {
     return null;
   }
@@ -280,9 +398,20 @@ function parseAnalyticsEventRecord(payload: unknown): AnalyticsEventRecord | nul
     return null;
   }
 
+  const requestCf = getRequestCfProperties(request);
+  const userAgent = request.headers.get('User-Agent') ?? '';
+
   return {
+    asOrganization: normalizeAnalyticsDimension(
+      requestCf?.asOrganization,
+      'Unknown network',
+      120,
+    ),
     appVersion: getOptionalString(eventPayload.appVersion, null, 32),
     buildNumber: getOptionalString(eventPayload.buildNumber, null, 32),
+    browserFamily: inferBrowserFamily(userAgent),
+    city: normalizeAnalyticsDimension(requestCf?.city, 'Unknown city', 80),
+    country: normalizeAnalyticsDimension(requestCf?.country, 'Unknown country', 32),
     eventType,
     hasUnlock: getBooleanFlag(settings.hasUnlock),
     installId,
@@ -291,14 +420,49 @@ function parseAnalyticsEventRecord(payload: unknown): AnalyticsEventRecord | nul
     mode: getAllowedString(settings.mode, ANALYTICS_MODES) ?? 'auto',
     pathname: getOptionalString(eventPayload.pathname, '/', 120) ?? '/',
     playoffsOnly: getBooleanFlag(settings.playoffsOnly),
+    platform: inferPlatform(userAgent),
     recordedAt: Date.now(),
     refreshSeconds: getInteger(settings.refreshSeconds, 10, 1, 60),
+    region: normalizeAnalyticsDimension(requestCf?.region, 'Unknown region', 80),
     showClock: getBooleanFlag(settings.showClock),
     style:
       getAllowedString(settings.style, ANALYTICS_STYLES) ?? 'broadcast',
     teamCount: getInteger(settings.teamCount, 0, 0, 32),
     teamsKey: getOptionalString(settings.teamsKey, 'AUTO', 120) ?? 'AUTO',
+    timezone: normalizeAnalyticsDimension(requestCf?.timezone, 'Unknown timezone', 80),
   };
+}
+
+async function getAnalyticsTableColumns(db: D1Database): Promise<Set<string>> {
+  const result = await db
+    .prepare('PRAGMA table_info(analytics_events)')
+    .all<AnalyticsTableColumnRow>();
+
+  return new Set(
+    (result.results ?? [])
+      .map((row) => (typeof row.name === 'string' ? row.name : null))
+      .filter((columnName): columnName is string => Boolean(columnName)),
+  );
+}
+
+function hasAnalyticsColumn(
+  columnNames: Set<string>,
+  columnName: string,
+): boolean {
+  return columnNames.has(columnName);
+}
+
+async function fetchOptionalAnalyticsBreakdown(
+  db: D1Database,
+  columnNames: Set<string>,
+  columnName: string,
+  since: number,
+): Promise<Array<{ count: number; value: string }>> {
+  if (!hasAnalyticsColumn(columnNames, columnName)) {
+    return [];
+  }
+
+  return fetchAnalyticsBreakdown(db, columnName, since);
 }
 
 async function fetchAnalyticsBreakdown(
@@ -674,7 +838,7 @@ async function handleAnalyticsEvent(
     );
   }
 
-  const analyticsEvent = parseAnalyticsEventRecord(payload);
+  const analyticsEvent = parseAnalyticsEventRecord(payload, request);
 
   if (!analyticsEvent) {
     return jsonResponse(
@@ -687,46 +851,89 @@ async function handleAnalyticsEvent(
   }
 
   try {
+    const analyticsColumns = await getAnalyticsTableColumns(analyticsDb);
+    const insertColumns = [
+      'recorded_at',
+      'event_type',
+      'install_id',
+      'pathname',
+      'app_version',
+      'build_number',
+      'mode',
+      'style',
+      'layout',
+      'refresh_seconds',
+      'playoffs_only',
+      'show_clock',
+      'team_count',
+      'teams_key',
+      'has_unlock',
+    ];
+    const insertBindings: unknown[] = [
+      analyticsEvent.recordedAt,
+      analyticsEvent.eventType,
+      analyticsEvent.installId,
+      analyticsEvent.pathname,
+      analyticsEvent.appVersion,
+      analyticsEvent.buildNumber,
+      analyticsEvent.mode,
+      analyticsEvent.style,
+      analyticsEvent.layout,
+      analyticsEvent.refreshSeconds,
+      analyticsEvent.playoffsOnly,
+      analyticsEvent.showClock,
+      analyticsEvent.teamCount,
+      analyticsEvent.teamsKey,
+      analyticsEvent.hasUnlock,
+    ];
+
+    if (hasAnalyticsColumn(analyticsColumns, 'country')) {
+      insertColumns.push('country');
+      insertBindings.push(analyticsEvent.country);
+    }
+
+    if (hasAnalyticsColumn(analyticsColumns, 'region')) {
+      insertColumns.push('region');
+      insertBindings.push(analyticsEvent.region);
+    }
+
+    if (hasAnalyticsColumn(analyticsColumns, 'city')) {
+      insertColumns.push('city');
+      insertBindings.push(analyticsEvent.city);
+    }
+
+    if (hasAnalyticsColumn(analyticsColumns, 'timezone')) {
+      insertColumns.push('timezone');
+      insertBindings.push(analyticsEvent.timezone);
+    }
+
+    if (hasAnalyticsColumn(analyticsColumns, 'as_organization')) {
+      insertColumns.push('as_organization');
+      insertBindings.push(analyticsEvent.asOrganization);
+    }
+
+    if (hasAnalyticsColumn(analyticsColumns, 'browser_family')) {
+      insertColumns.push('browser_family');
+      insertBindings.push(analyticsEvent.browserFamily);
+    }
+
+    if (hasAnalyticsColumn(analyticsColumns, 'platform')) {
+      insertColumns.push('platform');
+      insertBindings.push(analyticsEvent.platform);
+    }
+
+    const placeholders = insertColumns.map(() => '?').join(', ');
+
     await analyticsDb
       .prepare(
         `
           INSERT INTO analytics_events (
-            recorded_at,
-            event_type,
-            install_id,
-            pathname,
-            app_version,
-            build_number,
-            mode,
-            style,
-            layout,
-            refresh_seconds,
-            playoffs_only,
-            show_clock,
-            team_count,
-            teams_key,
-            has_unlock
+            ${insertColumns.join(', ')}
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          VALUES (${placeholders})
         `,
       )
-      .bind(
-        analyticsEvent.recordedAt,
-        analyticsEvent.eventType,
-        analyticsEvent.installId,
-        analyticsEvent.pathname,
-        analyticsEvent.appVersion,
-        analyticsEvent.buildNumber,
-        analyticsEvent.mode,
-        analyticsEvent.style,
-        analyticsEvent.layout,
-        analyticsEvent.refreshSeconds,
-        analyticsEvent.playoffsOnly,
-        analyticsEvent.showClock,
-        analyticsEvent.teamCount,
-        analyticsEvent.teamsKey,
-        analyticsEvent.hasUnlock,
-      )
+      .bind(...insertBindings)
       .run();
   } catch {
     return jsonResponse(
@@ -801,6 +1008,7 @@ async function handleAnalyticsSummary(
   const since = Date.now() - windowDays * 86_400_000;
 
   try {
+    const analyticsColumns = await getAnalyticsTableColumns(analyticsDb);
     const totals = await analyticsDb
       .prepare(
         `
@@ -843,49 +1051,100 @@ async function handleAnalyticsSummary(
       )
       .bind(since)
       .all<Record<string, unknown>>();
-    const pathResult = await fetchAnalyticsBreakdown(
+    const pathResult = await fetchOptionalAnalyticsBreakdown(
       analyticsDb,
+      analyticsColumns,
       'pathname',
       since,
     );
-    const modeResult = await fetchAnalyticsBreakdown(
+    const modeResult = await fetchOptionalAnalyticsBreakdown(
       analyticsDb,
+      analyticsColumns,
       'mode',
       since,
     );
-    const styleResult = await fetchAnalyticsBreakdown(
+    const styleResult = await fetchOptionalAnalyticsBreakdown(
       analyticsDb,
+      analyticsColumns,
       'style',
       since,
     );
-    const layoutResult = await fetchAnalyticsBreakdown(
+    const layoutResult = await fetchOptionalAnalyticsBreakdown(
       analyticsDb,
+      analyticsColumns,
       'layout',
       since,
     );
-    const refreshResult = await fetchAnalyticsBreakdown(
+    const refreshResult = await fetchOptionalAnalyticsBreakdown(
       analyticsDb,
+      analyticsColumns,
       'refresh_seconds',
       since,
     );
-    const playoffsResult = await fetchAnalyticsBreakdown(
+    const playoffsResult = await fetchOptionalAnalyticsBreakdown(
       analyticsDb,
+      analyticsColumns,
       'playoffs_only',
       since,
     );
-    const clockResult = await fetchAnalyticsBreakdown(
+    const clockResult = await fetchOptionalAnalyticsBreakdown(
       analyticsDb,
+      analyticsColumns,
       'show_clock',
       since,
     );
-    const teamCountResult = await fetchAnalyticsBreakdown(
+    const teamCountResult = await fetchOptionalAnalyticsBreakdown(
       analyticsDb,
+      analyticsColumns,
       'team_count',
       since,
     );
-    const teamsResult = await fetchAnalyticsBreakdown(
+    const teamsResult = await fetchOptionalAnalyticsBreakdown(
       analyticsDb,
+      analyticsColumns,
       'teams_key',
+      since,
+    );
+    const countryResult = await fetchOptionalAnalyticsBreakdown(
+      analyticsDb,
+      analyticsColumns,
+      'country',
+      since,
+    );
+    const regionResult = await fetchOptionalAnalyticsBreakdown(
+      analyticsDb,
+      analyticsColumns,
+      'region',
+      since,
+    );
+    const cityResult = await fetchOptionalAnalyticsBreakdown(
+      analyticsDb,
+      analyticsColumns,
+      'city',
+      since,
+    );
+    const timezoneResult = await fetchOptionalAnalyticsBreakdown(
+      analyticsDb,
+      analyticsColumns,
+      'timezone',
+      since,
+    );
+    const networkResult = await fetchOptionalAnalyticsBreakdown(
+      analyticsDb,
+      analyticsColumns,
+      'as_organization',
+      since,
+    );
+    const browserResult = await fetchOptionalAnalyticsBreakdown(
+      analyticsDb,
+      analyticsColumns,
+      'browser_family',
+      since,
+    );
+    const platformResult = await fetchOptionalAnalyticsBreakdown(
+      analyticsDb,
+      analyticsColumns,
+      'platform',
       since,
     );
 
@@ -917,6 +1176,15 @@ async function handleAnalyticsSummary(
           style: styleResult,
           teamCount: teamCountResult,
           teams: teamsResult,
+        },
+        audience: {
+          browsers: browserResult,
+          cities: cityResult,
+          countries: countryResult,
+          networks: networkResult,
+          platforms: platformResult,
+          regions: regionResult,
+          timezones: timezoneResult,
         },
       },
       headers,

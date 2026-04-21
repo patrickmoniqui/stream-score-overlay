@@ -171,3 +171,32 @@ The summary includes:
 - settings-page users vs overlay users
 - link copies and overlay loads
 - latest-setting breakdowns for style, layout, refresh interval, playoffs toggle, clock toggle, team count, and team selection
+
+### Private admin page
+
+There is also a static admin page at `/admin/`.
+
+- Example local URL: `http://localhost:5173/admin/`
+- Example production URL: `https://<your-user>.github.io/<repo>/admin/`
+
+The page is not linked from the public settings UI. It asks for your `ANALYTICS_READ_TOKEN`, stores it in your browser, and uses it to call the protected summary endpoint.
+
+### Location and client stats
+
+Analytics events can also include request-derived metadata from Cloudflare:
+
+- country
+- region
+- city
+- timezone
+- network organization
+- browser family
+- platform
+
+The implementation intentionally does not store raw IP addresses.
+
+If you already created the `analytics_events` table before these fields existed, run this one-time migration:
+
+```bash
+npx wrangler d1 execute nhl-live-feed-analytics --remote --file worker/sql/analytics_location_client_migration.sql
+```
