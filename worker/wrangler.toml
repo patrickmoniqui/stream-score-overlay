@@ -2,6 +2,10 @@ name = "nhl-live-feed-worker"
 main = "src/index.ts"
 compatibility_date = "2026-04-19"
 
+[observability]
+enabled = true
+head_sampling_rate = 0.01
+
 # Uncomment after creating your D1 database.
 # [[d1_databases]]
 # binding = "ANALYTICS_DB"
