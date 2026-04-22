@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ScoreboardCard } from '../components/ScoreboardCard';
 import {
   CREDIT_REVEAL_EVERY_MINUTES,
@@ -70,10 +70,12 @@ export function SettingsPage() {
     alignment: 'away' | 'home';
   } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState<string | null>(null);
   const [twitchGateStatus, setTwitchGateStatus] = useState<TwitchGateStatus | null>(
     null,
   );
   const [twitchGateError, setTwitchGateError] = useState<string | null>(null);
+  const overlayLinkRef = useRef<HTMLTextAreaElement | null>(null);
   const { data, error, loading } = useOverlayData(config);
   const previousGame = findPreviousFinalGame(data.selectedGame, data.games);
   const selectedStyle =
@@ -151,7 +153,35 @@ export function SettingsPage() {
   }, [twitchGateEnabled, twitchGateStatus]);
 
   async function copyUrl() {
-    await navigator.clipboard.writeText(trackedOverlayUrl);
+    setCopyError(null);
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(trackedOverlayUrl);
+      } else {
+        throw new Error('Clipboard API unavailable');
+      }
+    } catch {
+      const overlayLinkField = overlayLinkRef.current;
+
+      if (overlayLinkField) {
+        overlayLinkField.focus();
+        overlayLinkField.select();
+        overlayLinkField.setSelectionRange(0, overlayLinkField.value.length);
+
+        if (document.execCommand('copy')) {
+          void trackAnalyticsEvent('overlay_link_copied', config, { installId });
+          setCopied(true);
+          return;
+        }
+      }
+
+      setCopyError(
+        'Clipboard access was blocked. The overlay link is highlighted so you can copy it manually.',
+      );
+      return;
+    }
+
     void trackAnalyticsEvent('overlay_link_copied', config, { installId });
     setCopied(true);
   }
@@ -412,12 +442,22 @@ export function SettingsPage() {
 
           <div className="field">
             <span>Overlay link</span>
-            <textarea readOnly value={trackedOverlayUrl} rows={4} />
+            <textarea
+              ref={overlayLinkRef}
+              readOnly
+              value={trackedOverlayUrl}
+              rows={4}
+            />
           </div>
 
-          <button className="primary-button" onClick={() => void copyUrl()}>
+          <button
+            className="primary-button"
+            type="button"
+            onClick={() => void copyUrl()}
+          >
             {copied ? 'Copied' : 'Copy overlay link'}
           </button>
+          {copyError ? <p className="helper-text helper-error">{copyError}</p> : null}
 
           {loading ? <p className="helper-text">Loading current games…</p> : null}
           {error ? <p className="helper-text helper-error">{error}</p> : null}
