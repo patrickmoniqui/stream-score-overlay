@@ -2,12 +2,13 @@ import { CREDIT_LABEL } from '../lib/credit';
 import { getStatusBadge, getStatusDetail } from '../lib/format';
 import { isFinalGame, isLiveGame } from '../lib/gameSelection';
 import { useCreditReveal } from '../lib/useCreditReveal';
-import type { NhlGame, OverlayStyle } from '../lib/types';
+import type { NhlGame, OverlayLayout, OverlayStyle } from '../lib/types';
 
 interface MultiScoreboardCardProps {
   primaryGame: NhlGame | null;
   games: NhlGame[];
   showClock: boolean;
+  layout: OverlayLayout;
   style: OverlayStyle;
   showCredit: boolean;
   className?: string;
@@ -38,19 +39,21 @@ export function MultiScoreboardCard({
   primaryGame,
   games,
   showClock,
+  layout,
   style,
   showCredit,
   className,
   emptyLabel = 'No live games available',
 }: MultiScoreboardCardProps) {
   const showCreditReveal = useCreditReveal(showCredit);
+  const isCompact = layout === 'compact';
 
   if (!games.length) {
     return (
       <div
         className={`scoreboard-card multi-scoreboard-card ${className ?? ''}`.trim()}
         data-style={style}
-        data-layout="compact"
+        data-layout={layout}
       >
         <div className="scoreboard-empty">{emptyLabel}</div>
       </div>
@@ -61,13 +64,15 @@ export function MultiScoreboardCard({
     <div
       className={`scoreboard-card multi-scoreboard-card ${className ?? ''}`.trim()}
       data-style={style}
-      data-layout="compact"
+      data-layout={layout}
     >
-      <div className="scorebug-header">
-        <div className="status-pill status-pill-live">MULTI</div>
-        <div className="status-rail" />
-        <div className="status-detail">{getFooterText(games.length)}</div>
-      </div>
+      {!isCompact ? (
+        <div className="scorebug-header">
+          <div className="status-pill status-pill-live">MULTI</div>
+          <div className="status-rail" />
+          <div className="status-detail">{getFooterText(games.length)}</div>
+        </div>
+      ) : null}
       <div className="multi-scoreboard-list">
         {games.map((game) => {
           const awayLogo = getTeamLogo(game.awayTeam);
@@ -134,11 +139,13 @@ export function MultiScoreboardCard({
           );
         })}
       </div>
-      <div className="scorebug-footer">
-        <div className="series-line">
-          {showCreditReveal ? CREDIT_LABEL : getFooterText(games.length)}
+      {!isCompact ? (
+        <div className="scorebug-footer">
+          <div className="series-line">
+            {showCreditReveal ? CREDIT_LABEL : getFooterText(games.length)}
+          </div>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }

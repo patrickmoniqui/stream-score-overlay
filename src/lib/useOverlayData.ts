@@ -4,6 +4,7 @@ import {
   buildGameSelection,
   buildMergedGames,
   getRefreshInterval,
+  isFinalGame,
 } from './gameSelection';
 import type { DataSnapshot, OverlayConfig } from './types';
 
@@ -12,6 +13,8 @@ interface OverlayDataState {
   loading: boolean;
   error: string | null;
 }
+
+const FINAL_SELECTION_HOLD_MS = 5 * 60_000;
 
 function createEmptySnapshot(): DataSnapshot {
   return {
@@ -50,6 +53,9 @@ export function useOverlayData(config: OverlayConfig): OverlayDataState {
     let cancelled = false;
     let timeoutId: number | undefined;
     let activeController: AbortController | null = null;
+    let heldSelection: { gameId: number; expiresAt: number } | null = null;
+    let previousSelection: Pick<DataSnapshot, 'displayMode' | 'selectedGame'> | null =
+      null;
 
     async function loadData() {
       activeController?.abort();
@@ -76,7 +82,50 @@ export function useOverlayData(config: OverlayConfig): OverlayDataState {
           buildMergedGames(schedule, score),
           previousScore?.games ?? [],
         );
-        const selection = buildGameSelection(config, mergedGames);
+        const now = Date.now();
+        const previousSelectedGame = previousSelection?.selectedGame ?? null;
+        const previousGame =
+          previousSelectedGame
+            ? mergedGames.find((game) => game.id === previousSelectedGame.id) ?? null
+            : null;
+
+        if (
+          previousSelection?.displayMode === 'single' &&
+          previousSelectedGame &&
+          !isFinalGame(previousSelectedGame) &&
+          previousGame &&
+          isFinalGame(previousGame)
+        ) {
+          heldSelection = {
+            gameId: previousGame.id,
+            expiresAt: now + FINAL_SELECTION_HOLD_MS,
+          };
+        }
+
+        let selection = buildGameSelection(config, mergedGames, now);
+
+        if (heldSelection && heldSelection.expiresAt > now) {
+          const heldGameId = heldSelection.gameId;
+          const heldGame =
+            mergedGames.find((game) => game.id === heldGameId) ?? null;
+
+          if (heldGame && isFinalGame(heldGame)) {
+            selection = {
+              displayMode: 'single',
+              selectedGame: heldGame,
+              selectedGames: [heldGame],
+            };
+          } else {
+            heldSelection = null;
+          }
+        } else {
+          heldSelection = null;
+        }
+
+        previousSelection = {
+          displayMode: selection.displayMode,
+          selectedGame: selection.selectedGame,
+        };
 
         setState({
           data: {

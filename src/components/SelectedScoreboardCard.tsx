@@ -40,6 +40,7 @@ export function SelectedScoreboardCard({
         primaryGame={selectedGame}
         games={selectedGames}
         showClock={showClock}
+        layout={layout}
         style={style}
         showCredit={showCredit}
         className={className}
