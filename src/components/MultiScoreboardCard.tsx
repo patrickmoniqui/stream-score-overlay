@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { CREDIT_LABEL } from '../lib/credit';
 import { getStatusBadge, getStatusDetail } from '../lib/format';
 import { isFinalGame, isLiveGame } from '../lib/gameSelection';
@@ -14,6 +15,13 @@ interface MultiScoreboardCardProps {
   className?: string;
   emptyLabel?: string;
 }
+
+interface MultiGoalReaction {
+  key: number;
+  alignment: 'away' | 'home';
+}
+
+const MULTI_GOAL_REACTION_MS = 1_800;
 
 function getStatusTone(game: NhlGame): string {
   if (isLiveGame(game)) {
@@ -47,6 +55,102 @@ export function MultiScoreboardCard({
 }: MultiScoreboardCardProps) {
   const showCreditReveal = useCreditReveal(showCredit);
   const isCompact = layout === 'compact';
+  const [goalReactions, setGoalReactions] = useState<
+    Record<number, MultiGoalReaction>
+  >({});
+  const previousScoresRef = useRef<Map<number, { awayScore: number; homeScore: number }>>(
+    new Map(),
+  );
+  const reactionTimeoutsRef = useRef<Map<number, number>>(new Map());
+
+  useEffect(() => {
+    const previousScores = previousScoresRef.current;
+    const nextScores = new Map<number, { awayScore: number; homeScore: number }>();
+    const nextReactions: Array<{ gameId: number; reaction: MultiGoalReaction }> = [];
+
+    for (const game of games) {
+      const awayScore = game.awayTeam.score ?? 0;
+      const homeScore = game.homeTeam.score ?? 0;
+
+      nextScores.set(game.id, { awayScore, homeScore });
+
+      const previousGameScores = previousScores.get(game.id);
+
+      if (!previousGameScores || !isLiveGame(game)) {
+        continue;
+      }
+
+      const awayIncrease = awayScore - previousGameScores.awayScore;
+      const homeIncrease = homeScore - previousGameScores.homeScore;
+
+      if (awayIncrease > 0 && homeIncrease <= 0) {
+        nextReactions.push({
+          gameId: game.id,
+          reaction: {
+            key: Date.now() + game.id,
+            alignment: 'away',
+          },
+        });
+      } else if (homeIncrease > 0 && awayIncrease <= 0) {
+        nextReactions.push({
+          gameId: game.id,
+          reaction: {
+            key: Date.now() + game.id,
+            alignment: 'home',
+          },
+        });
+      }
+    }
+
+    previousScoresRef.current = nextScores;
+
+    if (!nextReactions.length) {
+      return;
+    }
+
+    setGoalReactions((currentReactions) => {
+      const updatedReactions = { ...currentReactions };
+
+      for (const { gameId, reaction } of nextReactions) {
+        updatedReactions[gameId] = reaction;
+      }
+
+      return updatedReactions;
+    });
+
+    for (const { gameId, reaction } of nextReactions) {
+      const existingTimeoutId = reactionTimeoutsRef.current.get(gameId);
+
+      if (existingTimeoutId) {
+        window.clearTimeout(existingTimeoutId);
+      }
+
+      const timeoutId = window.setTimeout(() => {
+        setGoalReactions((currentReactions) => {
+          if (currentReactions[gameId]?.key !== reaction.key) {
+            return currentReactions;
+          }
+
+          const nextGoalReactions = { ...currentReactions };
+          delete nextGoalReactions[gameId];
+          return nextGoalReactions;
+        });
+
+        reactionTimeoutsRef.current.delete(gameId);
+      }, MULTI_GOAL_REACTION_MS);
+
+      reactionTimeoutsRef.current.set(gameId, timeoutId);
+    }
+  }, [games]);
+
+  useEffect(() => {
+    return () => {
+      reactionTimeoutsRef.current.forEach((timeoutId) => {
+        window.clearTimeout(timeoutId);
+      });
+      reactionTimeoutsRef.current.clear();
+    };
+  }, []);
 
   if (!games.length) {
     return (
@@ -78,12 +182,27 @@ export function MultiScoreboardCard({
           const awayLogo = getTeamLogo(game.awayTeam);
           const homeLogo = getTeamLogo(game.homeTeam);
           const isPrimaryGame = primaryGame?.id === game.id;
+          const goalReaction = goalReactions[game.id];
+          const awayScoreKey =
+            goalReaction?.alignment === 'away'
+              ? `${game.id}-away-${goalReaction.key}`
+              : `${game.id}-away`;
+          const homeScoreKey =
+            goalReaction?.alignment === 'home'
+              ? `${game.id}-home-${goalReaction.key}`
+              : `${game.id}-home`;
 
           return (
             <div
               key={game.id}
-              className={`multi-scoreboard-row${isPrimaryGame ? ' is-primary' : ''}`}
+              className={`multi-scoreboard-row${isPrimaryGame ? ' is-primary' : ''}${goalReaction ? ` is-goal-${goalReaction.alignment}` : ''}`}
             >
+              {goalReaction ? (
+                <span
+                  key={`flash-${game.id}-${goalReaction.key}`}
+                  className={`multi-scoreboard-row-flash multi-scoreboard-row-flash-${goalReaction.alignment}`}
+                />
+              ) : null}
               <div className="multi-scoreboard-matchup">
                 <div className="multi-scoreboard-team multi-scoreboard-team-away">
                   {awayLogo ? (
@@ -102,11 +221,17 @@ export function MultiScoreboardCard({
                   </span>
                 </div>
                 <div className="multi-scoreboard-scoreline">
-                  <span className="multi-scoreboard-score">
+                  <span
+                    key={awayScoreKey}
+                    className={`multi-scoreboard-score${goalReaction?.alignment === 'away' ? ' is-scored is-scored-away' : ''}`}
+                  >
                     {game.awayTeam.score ?? 0}
                   </span>
                   <span className="multi-scoreboard-score-separator">-</span>
-                  <span className="multi-scoreboard-score">
+                  <span
+                    key={homeScoreKey}
+                    className={`multi-scoreboard-score${goalReaction?.alignment === 'home' ? ' is-scored is-scored-home' : ''}`}
+                  >
                     {game.homeTeam.score ?? 0}
                   </span>
                 </div>

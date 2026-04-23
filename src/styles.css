@@ -1352,6 +1352,9 @@ textarea {
   align-items: center;
   gap: 14px;
   padding: 12px 14px;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
 }
 
 .multi-scoreboard-row + .multi-scoreboard-row {
@@ -1368,6 +1371,32 @@ textarea {
 
 .multi-scoreboard-row.is-primary {
   box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.multi-scoreboard-row > * {
+  position: relative;
+  z-index: 1;
+}
+
+.multi-scoreboard-row-flash {
+  --multi-scoreboard-flash-rgb: 245, 182, 62;
+  position: absolute;
+  inset: -20%;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at center, rgba(255, 255, 255, 0.24), transparent 44%),
+    linear-gradient(
+      120deg,
+      rgba(var(--multi-scoreboard-flash-rgb), 0.42) 0%,
+      rgba(var(--multi-scoreboard-flash-rgb), 0.22) 42%,
+      rgba(255, 255, 255, 0.04) 100%
+    );
+  animation: multi-scoreboard-row-flash 1.8s ease-out both;
+}
+
+.multi-scoreboard-row-flash-home {
+  --multi-scoreboard-flash-rgb: 214, 46, 56;
 }
 
 .multi-scoreboard-matchup {
@@ -1440,8 +1469,23 @@ textarea {
 }
 
 .multi-scoreboard-score {
+  display: inline-block;
   min-width: 1ch;
   text-align: center;
+}
+
+.multi-scoreboard-score.is-scored {
+  animation: multi-scoreboard-score-pulse 1.05s ease-out both;
+}
+
+.multi-scoreboard-score.is-scored-away {
+  color: #ffe1a7;
+  text-shadow: 0 0 18px rgba(245, 182, 62, 0.55);
+}
+
+.multi-scoreboard-score.is-scored-home {
+  color: #ffb8bd;
+  text-shadow: 0 0 18px rgba(214, 46, 56, 0.5);
 }
 
 .multi-scoreboard-score-separator {
@@ -1609,6 +1653,40 @@ textarea {
   line-height: 1;
   text-transform: uppercase;
   text-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+}
+
+@keyframes multi-scoreboard-row-flash {
+  0% {
+    opacity: 0;
+    transform: translateX(-10%) scale(1.04);
+  }
+
+  18% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(6%) scale(1);
+  }
+}
+
+@keyframes multi-scoreboard-score-pulse {
+  0% {
+    transform: scale(0.94);
+  }
+
+  28% {
+    transform: scale(1.22);
+  }
+
+  54% {
+    transform: scale(0.98);
+  }
+
+  100% {
+    transform: scale(1);
+  }
 }
 
 .scoreboard-card[data-layout="compact"] .goal-flash-content {
