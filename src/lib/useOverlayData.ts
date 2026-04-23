@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react';
 import { fetchScheduleNow, fetchScoreByDate, fetchScoreNow } from './api';
-import { buildMergedGames, getRefreshInterval, selectGame } from './gameSelection';
-import type { DataSnapshot, OverlayConfig, ScheduleResponse, ScoreResponse } from './types';
+import {
+  buildGameSelection,
+  buildMergedGames,
+  getRefreshInterval,
+} from './gameSelection';
+import type { DataSnapshot, OverlayConfig } from './types';
 
 interface OverlayDataState {
   data: DataSnapshot;
@@ -12,7 +16,9 @@ interface OverlayDataState {
 function createEmptySnapshot(): DataSnapshot {
   return {
     games: [],
+    displayMode: 'single',
     selectedGame: null,
+    selectedGames: [],
     schedule: null,
     score: null,
   };
@@ -70,12 +76,14 @@ export function useOverlayData(config: OverlayConfig): OverlayDataState {
           buildMergedGames(schedule, score),
           previousScore?.games ?? [],
         );
-        const selectedGame = selectGame(config, mergedGames);
+        const selection = buildGameSelection(config, mergedGames);
 
         setState({
           data: {
             games: mergedGames,
-            selectedGame,
+            displayMode: selection.displayMode,
+            selectedGame: selection.selectedGame,
+            selectedGames: selection.selectedGames,
             schedule,
             score,
           },

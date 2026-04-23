@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react';
+import { SelectedScoreboardCard } from '../components/SelectedScoreboardCard';
 import {
   getAnalyticsInstallId,
   getInstallIdFromSearch,
@@ -6,7 +7,6 @@ import {
 } from '../lib/analytics';
 import { parseConfig } from '../lib/urlState';
 import { useOverlayData } from '../lib/useOverlayData';
-import { ScoreboardCard } from '../components/ScoreboardCard';
 import { findPreviousFinalGame } from '../lib/gameSelection';
 
 export function OverlayPage() {
@@ -27,8 +27,10 @@ export function OverlayPage() {
       {error ? (
         <div className="overlay-error">{error}</div>
       ) : (
-        <ScoreboardCard
-          game={data.selectedGame}
+        <SelectedScoreboardCard
+          displayMode={data.displayMode}
+          selectedGame={data.selectedGame}
+          selectedGames={data.selectedGames}
           previousGame={previousGame}
           showClock={config.showClock}
           muted={config.muted}

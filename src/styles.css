@@ -1276,6 +1276,7 @@ textarea {
   object-fit: contain;
   filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.28));
   padding: 0;
+  zoom: 2;
 }
 
 .compact-team-logo-fallback {
@@ -1301,7 +1302,7 @@ textarea {
   background: var(--scorebug-score-box);
   border-left: 1px solid var(--scorebug-score-border);
   font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
-  font-size: 2.2rem;
+  font-size: 3rem;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
@@ -1329,6 +1330,152 @@ textarea {
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
+}
+
+.multi-scoreboard-card {
+  width: var(--scorebug-compact-min-width);
+  min-width: var(--scorebug-compact-min-width);
+}
+
+.multi-scoreboard-list {
+  display: grid;
+  min-width: var(--scorebug-compact-min-width);
+  width: 100%;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 32%),
+    rgba(9, 16, 25, 0.72);
+}
+
+.multi-scoreboard-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+}
+
+.multi-scoreboard-row + .multi-scoreboard-row {
+  border-top: 1px solid var(--scorebug-row-border);
+}
+
+.multi-scoreboard-row:nth-child(odd) {
+  background: var(--scorebug-row-away-bg);
+}
+
+.multi-scoreboard-row:nth-child(even) {
+  background: var(--scorebug-row-home-bg);
+}
+
+.multi-scoreboard-row.is-primary {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.multi-scoreboard-matchup {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.multi-scoreboard-team {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.multi-scoreboard-team-home {
+  justify-content: flex-end;
+}
+
+.multi-scoreboard-team-logo,
+.multi-scoreboard-team-logo-fallback {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+}
+
+.multi-scoreboard-team-logo {
+  object-fit: contain;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.28));
+}
+
+.multi-scoreboard-team-logo-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.multi-scoreboard-team-code {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--scorebug-team-name);
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.multi-scoreboard-scoreline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background: var(--scorebug-score-box);
+  border: 1px solid var(--scorebug-score-border);
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-size: 1.4rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.multi-scoreboard-score {
+  min-width: 1ch;
+  text-align: center;
+}
+
+.multi-scoreboard-score-separator {
+  color: var(--scorebug-team-location);
+  font-size: 0.95rem;
+}
+
+.multi-scoreboard-meta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 190px;
+}
+
+.multi-scoreboard-meta .status-pill {
+  min-width: 60px;
+  padding: 5px 8px;
+  font-size: 0.76rem;
+}
+
+.multi-scoreboard-detail {
+  min-width: 0;
+  max-width: 118px;
+  overflow: hidden;
+  color: var(--scorebug-status-detail);
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-align: right;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .compact-credit-by {
@@ -1880,6 +2027,46 @@ textarea {
     min-height: 30px;
     padding: 5px 10px 7px;
     font-size: 0.64rem;
+  }
+
+  .multi-scoreboard-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 10px 12px;
+  }
+
+  .multi-scoreboard-matchup {
+    gap: 8px;
+  }
+
+  .multi-scoreboard-team-logo,
+  .multi-scoreboard-team-logo-fallback {
+    width: 22px;
+    height: 22px;
+  }
+
+  .multi-scoreboard-team-code {
+    font-size: 1.05rem;
+  }
+
+  .multi-scoreboard-scoreline {
+    padding: 4px 8px;
+    font-size: 1.2rem;
+  }
+
+  .multi-scoreboard-meta {
+    min-width: 0;
+    justify-content: space-between;
+  }
+
+  .multi-scoreboard-meta .status-pill {
+    min-width: 56px;
+    font-size: 0.72rem;
+  }
+
+  .multi-scoreboard-detail {
+    max-width: none;
+    font-size: 0.82rem;
   }
 
   .goal-flash {

@@ -1,4 +1,5 @@
 import type {
+  DataSnapshot,
   NhlGame,
   OverlayConfig,
   ScheduleResponse,
@@ -9,6 +10,11 @@ import { MIN_REFRESH_SECONDS } from './urlState';
 const LIVE_STATES = new Set(['LIVE', 'CRIT']);
 const UPCOMING_STATES = new Set(['PRE', 'FUT']);
 const FINAL_STATES = new Set(['FINAL', 'OFF']);
+const MAX_MULTI_GAMES = 4;
+const LIVE_STATE_PRIORITY: Record<string, number> = {
+  CRIT: 2,
+  LIVE: 1,
+};
 
 function mergeGame(baseGame: NhlGame, scoreGame?: NhlGame): NhlGame {
   if (!scoreGame) {
@@ -86,11 +92,74 @@ function compareDescending(a: NhlGame, b: NhlGame): number {
   return getStartMs(b) - getStartMs(a);
 }
 
-export function selectGame(
+function getPeriodPriority(game: NhlGame): number {
+  const descriptor = game.periodDescriptor;
+
+  if (!descriptor) {
+    return 0;
+  }
+
+  if (descriptor.periodType === 'SO') {
+    return 100 + descriptor.number;
+  }
+
+  if (descriptor.periodType === 'OT') {
+    return 80 + descriptor.number;
+  }
+
+  return descriptor.number;
+}
+
+function getGoalDiff(game: NhlGame): number {
+  const awayScore = game.awayTeam.score;
+  const homeScore = game.homeTeam.score;
+
+  if (awayScore === undefined || homeScore === undefined) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  return Math.abs(awayScore - homeScore);
+}
+
+function compareLivePriority(a: NhlGame, b: NhlGame): number {
+  const statePriority =
+    (LIVE_STATE_PRIORITY[b.gameState] ?? 0) - (LIVE_STATE_PRIORITY[a.gameState] ?? 0);
+
+  if (statePriority !== 0) {
+    return statePriority;
+  }
+
+  const periodPriority = getPeriodPriority(b) - getPeriodPriority(a);
+
+  if (periodPriority !== 0) {
+    return periodPriority;
+  }
+
+  const goalDiff = getGoalDiff(a) - getGoalDiff(b);
+
+  if (goalDiff !== 0) {
+    return goalDiff;
+  }
+
+  return compareAscending(a, b);
+}
+
+function buildSelection(
+  displayMode: DataSnapshot['displayMode'],
+  selectedGames: NhlGame[],
+): Pick<DataSnapshot, 'displayMode' | 'selectedGame' | 'selectedGames'> {
+  return {
+    displayMode,
+    selectedGame: selectedGames[0] ?? null,
+    selectedGames,
+  };
+}
+
+export function buildGameSelection(
   config: OverlayConfig,
   games: NhlGame[],
   now = Date.now(),
-): NhlGame | null {
+): Pick<DataSnapshot, 'displayMode' | 'selectedGame' | 'selectedGames'> {
   const eligibleGames = games.filter((game) => {
     if (config.playoffsOnly && !isPlayoffGame(game)) {
       return false;
@@ -100,11 +169,14 @@ export function selectGame(
   });
 
   if (!eligibleGames.length) {
-    return null;
+    return buildSelection('single', []);
   }
 
   if (config.gameId) {
-    return eligibleGames.find((game) => game.id === config.gameId) ?? null;
+    const selectedGame =
+      eligibleGames.find((game) => game.id === config.gameId) ?? null;
+
+    return buildSelection('single', selectedGame ? [selectedGame] : []);
   }
 
   const selectedTeams = new Set(config.teams);
@@ -118,13 +190,17 @@ export function selectGame(
       : eligibleGames;
 
   if (!filteredGames.length) {
-    return null;
+    return buildSelection('single', []);
   }
 
-  const liveGames = filteredGames.filter(isLiveGame).sort(compareAscending);
+  const liveGames = filteredGames.filter(isLiveGame).sort(compareLivePriority);
+
+  if (liveGames.length > 1) {
+    return buildSelection('multi', liveGames.slice(0, MAX_MULTI_GAMES));
+  }
 
   if (liveGames.length) {
-    return liveGames[0];
+    return buildSelection('single', [liveGames[0]]);
   }
 
   const upcomingGames = filteredGames
@@ -132,16 +208,24 @@ export function selectGame(
     .sort(compareAscending);
 
   if (upcomingGames.length) {
-    return upcomingGames[0];
+    return buildSelection('single', [upcomingGames[0]]);
   }
 
   const finalGames = filteredGames.filter(isFinalGame).sort(compareDescending);
 
   if (finalGames.length) {
-    return finalGames[0];
+    return buildSelection('single', [finalGames[0]]);
   }
 
-  return filteredGames.sort(compareAscending)[0] ?? null;
+  return buildSelection('single', filteredGames.sort(compareAscending).slice(0, 1));
+}
+
+export function selectGame(
+  config: OverlayConfig,
+  games: NhlGame[],
+  now = Date.now(),
+): NhlGame | null {
+  return buildGameSelection(config, games, now).selectedGame;
 }
 
 export function getRefreshInterval(refreshSeconds: number): number {

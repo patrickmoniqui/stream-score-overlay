@@ -1,9 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ScoreboardCard } from '../components/ScoreboardCard';
-import {
-  CREDIT_REVEAL_EVERY_MINUTES,
-  CREDIT_REVEAL_FOR_SECONDS,
-} from '../lib/credit';
+import { SelectedScoreboardCard } from '../components/SelectedScoreboardCard';
 import { isTwitchGateEnabled } from '../lib/features';
 import { OVERLAY_STYLE_OPTIONS } from '../lib/overlayStyles';
 import { NHL_TEAMS } from '../lib/teams';
@@ -209,7 +205,7 @@ export function SettingsPage() {
 
       return {
         ...current,
-        mode: nextTeams.length ? 'manual' : 'auto',
+        mode: 'auto',
         teams: nextTeams,
         gameId: undefined,
       };
@@ -318,8 +314,8 @@ export function SettingsPage() {
             </details>
             <small className="field-hint">
               {config.teams.length
-                ? `Following ${config.teams.length} team${config.teams.length === 1 ? '' : 's'}. Leave every box unchecked to follow the best live or upcoming game automatically.`
-                : 'Leave every box unchecked to follow the best live or upcoming game automatically.'}
+                ? `Following ${config.teams.length} team${config.teams.length === 1 ? '' : 's'}. The overlay stays in auto mode and switches to multi-game when more than one matching live game is active.`
+                : 'Leave every box unchecked to follow the best live or upcoming game automatically, with a multi-game view when more than one live matchup is active.'}
             </small>
           </div>
 
@@ -498,15 +494,21 @@ export function SettingsPage() {
 
         <div className="preview-panel">
           <div className="preview-frame">
-            <ScoreboardCard
-              game={data.selectedGame}
+            <SelectedScoreboardCard
+              displayMode={data.displayMode}
+              selectedGame={data.selectedGame}
+              selectedGames={data.selectedGames}
               previousGame={previousGame}
               showClock={config.showClock}
               muted={config.muted}
               style={config.style}
               layout={config.layout}
               showCredit
-              debugGoalFlash={canUseTestingTools ? previewGoalFlash : null}
+              debugGoalFlash={
+                canUseTestingTools && data.displayMode === 'single'
+                  ? previewGoalFlash
+                  : null
+              }
               emptyLabel="No game found for this setup"
             />
           </div>
@@ -516,14 +518,14 @@ export function SettingsPage() {
               <p className="developer-copy">
                 Use these preview controls to test the goal animation and horn
                 without waiting for a real score change. They only affect the
-                preview on this page.
+                preview on this page and stay available in single-game mode.
               </p>
               <div className="developer-actions">
                 <button
                   type="button"
                   className="secondary-button"
                   onClick={() => triggerPreviewGoal('away')}
-                  disabled={!data.selectedGame}
+                  disabled={!data.selectedGame || data.displayMode !== 'single'}
                 >
                   Test {data.selectedGame?.awayTeam.abbrev ?? 'Away'} Goal
                 </button>
@@ -531,7 +533,7 @@ export function SettingsPage() {
                   type="button"
                   className="secondary-button"
                   onClick={() => triggerPreviewGoal('home')}
-                  disabled={!data.selectedGame}
+                  disabled={!data.selectedGame || data.displayMode !== 'single'}
                 >
                   Test {data.selectedGame?.homeTeam.abbrev ?? 'Home'} Goal
                 </button>
@@ -540,7 +542,8 @@ export function SettingsPage() {
           ) : null}
           <p className="helper-text">
             Leave every team unchecked to follow the best live or upcoming game
-            automatically.
+            automatically. If more than one live game matches, the overlay
+            switches to a multi-game view.
           </p>
         </div>
       </section>

@@ -62,7 +62,7 @@ export function parseConfig(search: string): OverlayConfig {
       ? normalizeTeams([legacyTeam])
       : DEFAULT_CONFIG.teams;
   const refreshSeconds = normalizeRefreshSeconds(params.get('refresh'));
-  const mode = gameId || teams.length ? 'manual' : 'auto';
+  const mode = gameId ? 'manual' : 'auto';
 
   return {
     mode,
@@ -92,6 +92,10 @@ export function buildOverlayUrl(config: OverlayConfig): string {
 
   if (config.teams.length) {
     overlayUrl.searchParams.set('teams', config.teams.join(','));
+  }
+
+  if (config.gameId) {
+    overlayUrl.searchParams.set('gameId', String(config.gameId));
   }
 
   return overlayUrl.toString();

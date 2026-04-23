@@ -1,6 +1,7 @@
 export type AppMode = 'auto' | 'manual';
 export type OverlayStyle = 'broadcast' | 'classic' | 'minimal' | 'arena';
 export type OverlayLayout = 'stacked' | 'compact';
+export type SelectionDisplayMode = 'single' | 'multi';
 
 export type TeamChoice = string;
 
@@ -94,7 +95,9 @@ export interface ScoreResponse {
 
 export interface DataSnapshot {
   games: NhlGame[];
+  displayMode: SelectionDisplayMode;
   selectedGame: NhlGame | null;
+  selectedGames: NhlGame[];
   schedule: ScheduleResponse | null;
   score: ScoreResponse | null;
 }

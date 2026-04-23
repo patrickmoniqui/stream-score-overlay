@@ -2,8 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import {
   CREDIT_LABEL,
   CREDIT_NAME,
-  CREDIT_REVEAL_DURATION_MS,
-  CREDIT_REVEAL_INTERVAL_MS,
 } from '../lib/credit';
 import {
   getCompactSeriesState,
@@ -12,6 +10,7 @@ import {
   getStatusDetail,
 } from '../lib/format';
 import { isFinalGame, isLiveGame, isUpcomingGame } from '../lib/gameSelection';
+import { useCreditReveal } from '../lib/useCreditReveal';
 import type {
   NhlGame,
   OverlayLayout,
@@ -211,53 +210,24 @@ function getCompactMetaText(game: NhlGame, detail: string): string {
   return detail;
 }
 
-function useCreditReveal(enabled: boolean): boolean {
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    if (!enabled) {
-      setIsVisible(false);
-      return;
-    }
-
-    let revealTimeoutId: number | undefined;
-    let hideTimeoutId: number | undefined;
-
-    function scheduleReveal() {
-      revealTimeoutId = window.setTimeout(() => {
-        setIsVisible(true);
-        hideTimeoutId = window.setTimeout(() => {
-          setIsVisible(false);
-          scheduleReveal();
-        }, CREDIT_REVEAL_DURATION_MS);
-      }, CREDIT_REVEAL_INTERVAL_MS);
-    }
-
-    scheduleReveal();
-
-    return () => {
-      if (revealTimeoutId) {
-        window.clearTimeout(revealTimeoutId);
-      }
-
-      if (hideTimeoutId) {
-        window.clearTimeout(hideTimeoutId);
-      }
-    };
-  }, [enabled]);
-
-  return enabled && isVisible;
-}
-
 function useDisplayedStatusDetail(
   game: NhlGame | null,
   showClock: boolean,
   previousGame: NhlGame | null,
 ): string {
   const [showPreviousResult, setShowPreviousResult] = useState(true);
+  const gameId = game?.id ?? null;
+  const gameState = game?.gameState ?? null;
+  const gameStartTime = game?.startTimeUTC ?? null;
+  const previousGameId = previousGame?.id ?? null;
+  const previousAwayScore = previousGame?.awayTeam.score ?? null;
+  const previousHomeScore = previousGame?.homeTeam.score ?? null;
+  const previousStartTime = previousGame?.startTimeUTC ?? null;
+  const canRotate =
+    !!game && !!previousGame && isUpcomingGame(game);
 
   useEffect(() => {
-    if (!game || !previousGame || !isUpcomingGame(game)) {
+    if (!canRotate) {
       setShowPreviousResult(true);
       return;
     }
@@ -269,7 +239,16 @@ function useDisplayedStatusDetail(
     }, UPCOMING_DETAIL_ROTATION_MS);
 
     return () => window.clearInterval(intervalId);
-  }, [game, previousGame]);
+  }, [
+    canRotate,
+    gameId,
+    gameState,
+    gameStartTime,
+    previousGameId,
+    previousAwayScore,
+    previousHomeScore,
+    previousStartTime,
+  ]);
 
   if (!game) {
     return '';
