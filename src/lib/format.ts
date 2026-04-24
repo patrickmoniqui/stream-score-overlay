@@ -1,6 +1,10 @@
 import { isFinalGame, isLiveGame } from './gameSelection';
 import type { NhlGame } from './types';
 
+const UPCOMING_COUNTDOWN_WINDOW_MS = 24 * 60 * 60 * 1_000;
+
+type UpcomingDetailMode = 'default' | 'schedule' | 'countdown';
+
 function ordinal(value: number): string {
   if (value === 1) {
     return '1st';
@@ -72,6 +76,24 @@ function formatPreviousResult(previousGame: NhlGame): string | null {
   return `${gameDate} • ${previousGame.awayTeam.abbrev} ${awayScore}-${homeScore} ${previousGame.homeTeam.abbrev}`;
 }
 
+export function getUpcomingCountdownDetail(
+  game: NhlGame,
+  now = Date.now(),
+): string | null {
+  const startTimeMs = new Date(game.startTimeUTC).getTime();
+  const diffMs = startTimeMs - now;
+
+  if (diffMs <= 0 || diffMs >= UPCOMING_COUNTDOWN_WINDOW_MS) {
+    return null;
+  }
+
+  const totalMinutes = Math.max(1, Math.ceil(diffMs / 60_000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  return `In ${String(hours).padStart(2, '0')}h${String(minutes).padStart(2, '0')}`;
+}
+
 export function getStatusBadge(game: NhlGame): string {
   if (isLiveGame(game)) {
     const clock = game.clock;
@@ -94,6 +116,10 @@ export function getStatusDetail(
   game: NhlGame,
   showClock: boolean,
   previousGame?: NhlGame | null,
+  options: {
+    now?: number;
+    upcomingDetailMode?: UpcomingDetailMode;
+  } = {},
 ): string {
   if (isLiveGame(game)) {
     const clock = game.clock;
@@ -120,6 +146,21 @@ export function getStatusDetail(
     }
 
     return 'REGULATION';
+  }
+
+  const upcomingDetailMode = options.upcomingDetailMode ?? 'default';
+  const now = options.now ?? Date.now();
+
+  if (upcomingDetailMode === 'countdown') {
+    const countdownDetail = getUpcomingCountdownDetail(game, now);
+
+    if (countdownDetail) {
+      return countdownDetail;
+    }
+  }
+
+  if (upcomingDetailMode === 'schedule') {
+    return formatStartTime(game.startTimeUTC);
   }
 
   const previousResult = previousGame ? formatPreviousResult(previousGame) : null;

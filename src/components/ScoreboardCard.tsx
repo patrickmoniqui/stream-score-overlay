@@ -5,6 +5,7 @@ import {
 } from '../lib/credit';
 import {
   getCompactSeriesState,
+  getUpcomingCountdownDetail,
   getSeriesLine,
   getStatusBadge,
   getStatusDetail,
@@ -37,6 +38,7 @@ interface ScoreboardCardProps {
 const GOAL_FLASH_DURATION_MS = 30_000;
 const GOAL_HORN_DURATION_MS = 3_000;
 const UPCOMING_DETAIL_ROTATION_MS = 10_000;
+const UPCOMING_COUNTDOWN_ROTATION_MS = 30_000;
 
 interface GoalFlashState {
   key: number;
@@ -215,7 +217,7 @@ function useDisplayedStatusDetail(
   showClock: boolean,
   previousGame: NhlGame | null,
 ): string {
-  const [showPreviousResult, setShowPreviousResult] = useState(true);
+  const [showPrimaryUpcomingDetail, setShowPrimaryUpcomingDetail] = useState(true);
   const gameId = game?.id ?? null;
   const gameState = game?.gameState ?? null;
   const gameStartTime = game?.startTimeUTC ?? null;
@@ -223,27 +225,31 @@ function useDisplayedStatusDetail(
   const previousAwayScore = previousGame?.awayTeam.score ?? null;
   const previousHomeScore = previousGame?.homeTeam.score ?? null;
   const previousStartTime = previousGame?.startTimeUTC ?? null;
-  const canRotate =
-    !!game && !!previousGame && isUpcomingGame(game);
+  const now = Date.now();
+  const hasCountdownDetail =
+    !!game && isUpcomingGame(game) && !!getUpcomingCountdownDetail(game, now);
+  const canRotatePreviousResult =
+    !!game && !!previousGame && isUpcomingGame(game) && !hasCountdownDetail;
 
   useEffect(() => {
-    if (!canRotate) {
-      setShowPreviousResult(true);
+    if (!hasCountdownDetail && !canRotatePreviousResult) {
+      setShowPrimaryUpcomingDetail(true);
       return;
     }
 
-    setShowPreviousResult(true);
+    setShowPrimaryUpcomingDetail(true);
 
     const intervalId = window.setInterval(() => {
-      setShowPreviousResult((current) => !current);
-    }, UPCOMING_DETAIL_ROTATION_MS);
+      setShowPrimaryUpcomingDetail((current) => !current);
+    }, hasCountdownDetail ? UPCOMING_COUNTDOWN_ROTATION_MS : UPCOMING_DETAIL_ROTATION_MS);
 
     return () => window.clearInterval(intervalId);
   }, [
-    canRotate,
+    canRotatePreviousResult,
     gameId,
     gameState,
     gameStartTime,
+    hasCountdownDetail,
     previousGameId,
     previousAwayScore,
     previousHomeScore,
@@ -254,13 +260,35 @@ function useDisplayedStatusDetail(
     return '';
   }
 
-  if (!previousGame || !isUpcomingGame(game)) {
+  if (!isUpcomingGame(game)) {
     return getStatusDetail(game, showClock, previousGame);
   }
 
-  return showPreviousResult
+  if (hasCountdownDetail) {
+    return showPrimaryUpcomingDetail
+      ? getStatusDetail(game, showClock, previousGame, {
+          now,
+          upcomingDetailMode: 'countdown',
+        })
+      : getStatusDetail(game, showClock, previousGame, {
+          now,
+          upcomingDetailMode: 'schedule',
+        });
+  }
+
+  if (!previousGame) {
+    return getStatusDetail(game, showClock, previousGame, {
+      now,
+      upcomingDetailMode: 'schedule',
+    });
+  }
+
+  return showPrimaryUpcomingDetail
     ? getStatusDetail(game, showClock, previousGame)
-    : getStatusDetail(game, showClock);
+    : getStatusDetail(game, showClock, previousGame, {
+        now,
+        upcomingDetailMode: 'schedule',
+      });
 }
 
 function useGoalFlash(game: NhlGame | null): GoalFlashState | null {

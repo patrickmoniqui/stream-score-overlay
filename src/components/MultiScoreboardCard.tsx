@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { CREDIT_LABEL } from '../lib/credit';
-import { getStatusBadge, getStatusDetail } from '../lib/format';
+import {
+  getStatusBadge,
+  getStatusDetail,
+  getUpcomingCountdownDetail,
+} from '../lib/format';
 import { isFinalGame, isLiveGame } from '../lib/gameSelection';
 import { useCreditReveal } from '../lib/useCreditReveal';
 import type { NhlGame, OverlayLayout, OverlayStyle } from '../lib/types';
@@ -22,6 +26,7 @@ interface MultiGoalReaction {
 }
 
 const MULTI_GOAL_REACTION_MS = 1_800;
+const UPCOMING_COUNTDOWN_ROTATION_MS = 30_000;
 
 function getStatusTone(game: NhlGame): string {
   if (isLiveGame(game)) {
@@ -55,6 +60,7 @@ export function MultiScoreboardCard({
 }: MultiScoreboardCardProps) {
   const showCreditReveal = useCreditReveal(showCredit);
   const isCompact = layout === 'compact';
+  const [showUpcomingCountdown, setShowUpcomingCountdown] = useState(true);
   const [goalReactions, setGoalReactions] = useState<
     Record<number, MultiGoalReaction>
   >({});
@@ -62,6 +68,25 @@ export function MultiScoreboardCard({
     new Map(),
   );
   const reactionTimeoutsRef = useRef<Map<number, number>>(new Map());
+
+  useEffect(() => {
+    const hasRotatingUpcomingGame = games.some(
+      (game) => !!getUpcomingCountdownDetail(game),
+    );
+
+    if (!hasRotatingUpcomingGame) {
+      setShowUpcomingCountdown(true);
+      return;
+    }
+
+    setShowUpcomingCountdown(true);
+
+    const intervalId = window.setInterval(() => {
+      setShowUpcomingCountdown((current) => !current);
+    }, UPCOMING_COUNTDOWN_ROTATION_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, [games]);
 
   useEffect(() => {
     const previousScores = previousScoresRef.current;
@@ -257,7 +282,13 @@ export function MultiScoreboardCard({
                   {getStatusBadge(game)}
                 </span>
                 <span className="multi-scoreboard-detail">
-                  {getStatusDetail(game, showClock)}
+                  {getUpcomingCountdownDetail(game)
+                    ? getStatusDetail(game, showClock, null, {
+                        upcomingDetailMode: showUpcomingCountdown
+                          ? 'countdown'
+                          : 'schedule',
+                      })
+                    : getStatusDetail(game, showClock)}
                 </span>
               </div>
             </div>

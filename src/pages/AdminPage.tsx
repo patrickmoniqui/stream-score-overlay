@@ -82,7 +82,7 @@ function BreakdownTable({
             <thead>
               <tr>
                 <th>Value</th>
-                <th>Users</th>
+                <th>Installs</th>
               </tr>
             </thead>
             <tbody>
@@ -302,7 +302,7 @@ export function AdminPage() {
 
                 <div className="admin-metric-groups">
                   <section className="admin-metric-group">
-                    <p className="admin-metric-kicker">Users</p>
+                    <p className="admin-metric-kicker">Installs</p>
                     <h3 className="admin-metric-group-title">Reach</h3>
                     <p className="admin-metric-group-copy">
                       Distinct installs that touched the settings page or made it
@@ -310,19 +310,19 @@ export function AdminPage() {
                     </p>
                     <div className="admin-totals-grid">
                       <article className="admin-total-card">
-                        <p className="admin-total-label">Unique users</p>
+                        <p className="admin-total-label">Unique installs</p>
                         <p className="admin-total-value">
                           {formatNumber(summary.totals.uniqueUsers)}
                         </p>
                       </article>
                       <article className="admin-total-card">
-                        <p className="admin-total-label">Settings users</p>
+                        <p className="admin-total-label">Settings installs</p>
                         <p className="admin-total-value">
                           {formatNumber(summary.totals.settingsUsers)}
                         </p>
                       </article>
                       <article className="admin-total-card">
-                        <p className="admin-total-label">Overlay users</p>
+                        <p className="admin-total-label">Overlay installs</p>
                         <p className="admin-total-value">
                           {formatNumber(summary.totals.overlayUsers)}
                         </p>
@@ -376,7 +376,7 @@ export function AdminPage() {
                       <thead>
                         <tr>
                           <th>Day</th>
-                          <th>Unique users</th>
+                          <th>Unique installs</th>
                           <th>Overlay loads</th>
                           <th>Link copies</th>
                         </tr>
