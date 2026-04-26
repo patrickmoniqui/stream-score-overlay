@@ -11,6 +11,7 @@ interface SelectedScoreboardCardProps {
   muted: boolean;
   style: OverlayConfig['style'];
   layout: OverlayConfig['layout'];
+  goalAnimation: OverlayConfig['goalAnimation'];
   showCredit: boolean;
   debugGoalFlash?: {
     key: number;
@@ -29,6 +30,7 @@ export function SelectedScoreboardCard({
   muted,
   style,
   layout,
+  goalAnimation,
   showCredit,
   debugGoalFlash = null,
   className,
@@ -42,6 +44,7 @@ export function SelectedScoreboardCard({
         showClock={showClock}
         layout={layout}
         style={style}
+        goalAnimation={goalAnimation}
         showCredit={showCredit}
         className={className}
         emptyLabel={emptyLabel}
@@ -57,6 +60,7 @@ export function SelectedScoreboardCard({
       muted={muted}
       style={style}
       layout={layout}
+      goalAnimation={goalAnimation}
       showCredit={showCredit}
       debugGoalFlash={debugGoalFlash}
       className={className}

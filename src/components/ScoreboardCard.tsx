@@ -15,6 +15,7 @@ import { useCreditReveal } from '../lib/useCreditReveal';
 import { GoalFlash, type GoalFlashState } from './GoalFlash';
 import { GOAL_FLASH_DURATION_MS, useGoalFlash, useGoalHorn } from '../lib/useGoalEffects';
 import type {
+  GoalAnimationStyle,
   NhlGame,
   OverlayLayout,
   OverlayStyle,
@@ -28,6 +29,7 @@ interface ScoreboardCardProps {
   muted: boolean;
   style: OverlayStyle;
   layout: OverlayLayout;
+  goalAnimation: GoalAnimationStyle;
   showCredit: boolean;
   debugGoalFlash?: {
     key: number;
@@ -260,6 +262,7 @@ export function ScoreboardCard({
   muted,
   style,
   layout,
+  goalAnimation,
   showCredit,
   debugGoalFlash = null,
   className,
@@ -312,7 +315,13 @@ export function ScoreboardCard({
         {showCreditReveal ? (
           <div className="scoreboard-empty-credit">{CREDIT_LABEL}</div>
         ) : null}
-        {activeGoalFlash ? <GoalFlash key={activeGoalFlash.key} goalFlash={activeGoalFlash} /> : null}
+        {activeGoalFlash ? (
+          <GoalFlash
+            key={activeGoalFlash.key}
+            goalFlash={activeGoalFlash}
+            animationStyle={goalAnimation}
+          />
+        ) : null}
       </div>
     );
   }
@@ -391,7 +400,11 @@ export function ScoreboardCard({
         </>
       )}
       {activeGoalFlash ? (
-        <GoalFlash key={activeGoalFlash.key} goalFlash={activeGoalFlash} />
+        <GoalFlash
+          key={activeGoalFlash.key}
+          goalFlash={activeGoalFlash}
+          animationStyle={goalAnimation}
+        />
       ) : null}
     </div>
   );

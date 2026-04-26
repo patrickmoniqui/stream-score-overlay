@@ -77,7 +77,11 @@ export function LiveGoalPage() {
         data-layout={config.layout}
       >
         {activeGoalFlash ? (
-          <GoalFlash key={activeGoalFlash.key} goalFlash={activeGoalFlash} />
+          <GoalFlash
+            key={activeGoalFlash.key}
+            goalFlash={activeGoalFlash}
+            animationStyle={config.goalAnimation}
+          />
         ) : null}
         {error ? <div className="live-goal-error">{error}</div> : null}
       </div>

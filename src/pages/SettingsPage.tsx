@@ -26,6 +26,23 @@ import type { OverlayConfig } from '../lib/types';
 
 const SELECTABLE_NHL_TEAMS = NHL_TEAMS.filter((team) => team.abbrev !== 'AUTO');
 const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '[::1]']);
+const GOAL_ANIMATION_OPTIONS = [
+  {
+    value: 'logo-storm',
+    label: 'Logo Storm',
+    description: 'Team logos burst across the screen like goal confetti.',
+  },
+  {
+    value: 'jumbotron',
+    label: 'Arena Jumbotron',
+    description: 'A giant team-logo slam with broadcast-style light beams.',
+  },
+  {
+    value: 'logo-rain',
+    label: 'Logo Rain',
+    description: 'A calmer celebration wall with floating team logos.',
+  },
+] as const;
 
 function TwitchSocialIcon() {
   return (
@@ -78,6 +95,9 @@ export function SettingsPage() {
   const selectedStyle =
     OVERLAY_STYLE_OPTIONS.find((option) => option.value === config.style) ??
     OVERLAY_STYLE_OPTIONS[0];
+  const selectedGoalAnimation =
+    GOAL_ANIMATION_OPTIONS.find((option) => option.value === config.goalAnimation) ??
+    GOAL_ANIMATION_OPTIONS[0];
   const selectedTeamNames = SELECTABLE_NHL_TEAMS.filter((team) =>
     config.teams.includes(team.abbrev),
   ).map((team) => team.name);
@@ -314,9 +334,18 @@ export function SettingsPage() {
                           checked={checked}
                           onChange={() => toggleTeam(team.abbrev)}
                         />
+                        {'logo' in team ? (
+                          <img
+                            src={team.logo}
+                            alt=""
+                            className="team-option-logo"
+                            loading="lazy"
+                            aria-hidden="true"
+                          />
+                        ) : null}
                         <div className="team-option-copy">
-                          <p className="team-option-name">{team.name}</p>
-                          <small className="team-option-code">{team.abbrev}</small>
+                          <span className="team-option-name">{team.name}</span>
+                          <span className="team-option-code">{team.abbrev}</span>
                         </div>
                       </label>
                     );
@@ -368,6 +397,26 @@ export function SettingsPage() {
             <small className="field-hint">
               Compact keeps everything on a single line.
             </small>
+          </label>
+
+          <label className="field">
+            <span>Goal animation</span>
+            <select
+              value={config.goalAnimation}
+              onChange={(event) =>
+                setConfig((current) => ({
+                  ...current,
+                  goalAnimation: event.target.value as OverlayConfig['goalAnimation'],
+                }))
+              }
+            >
+              {GOAL_ANIMATION_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <small className="field-hint">{selectedGoalAnimation.description}</small>
           </label>
 
           <div className="field">
@@ -516,6 +565,7 @@ export function SettingsPage() {
               muted={config.muted}
               style={config.style}
               layout={config.layout}
+              goalAnimation={config.goalAnimation}
               showCredit
               debugGoalFlash={
                 canUseTestingTools && data.displayMode === 'single'

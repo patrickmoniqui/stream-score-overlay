@@ -18,6 +18,7 @@ interface AnalyticsEventPayload {
   pathname: string;
   settings: {
     hasUnlock: boolean;
+    goalAnimation: OverlayConfig['goalAnimation'];
     layout: OverlayConfig['layout'];
     mode: OverlayConfig['mode'];
     muted: boolean;
@@ -74,6 +75,7 @@ function buildEventPayload(
     pathname,
     settings: {
       hasUnlock: Boolean(config.unlockToken),
+      goalAnimation: config.goalAnimation,
       layout: config.layout,
       mode: config.mode,
       muted: config.muted,

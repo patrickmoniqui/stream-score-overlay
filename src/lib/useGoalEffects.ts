@@ -3,7 +3,7 @@ import { isLiveGame } from './gameSelection';
 import type { GoalFlashState } from '../components/GoalFlash';
 import type { NhlGame } from './types';
 
-export const GOAL_FLASH_DURATION_MS = 30_000;
+export const GOAL_FLASH_DURATION_MS = 60_000;
 const GOAL_HORN_DURATION_MS = 3_000;
 
 type GoalHornCleanup = () => void;

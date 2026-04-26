@@ -1,6 +1,7 @@
 export type AppMode = 'auto' | 'manual';
 export type OverlayStyle = 'broadcast' | 'classic' | 'minimal' | 'arena';
 export type OverlayLayout = 'stacked' | 'compact';
+export type GoalAnimationStyle = 'logo-storm' | 'jumbotron' | 'logo-rain';
 export type SelectionDisplayMode = 'single' | 'multi';
 
 export type TeamChoice = string;
@@ -9,6 +10,7 @@ export interface OverlayConfig {
   mode: AppMode;
   style: OverlayStyle;
   layout: OverlayLayout;
+  goalAnimation: GoalAnimationStyle;
   teams: TeamChoice[];
   gameId?: number;
   refreshSeconds: number;

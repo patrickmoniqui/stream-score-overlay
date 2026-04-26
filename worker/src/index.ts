@@ -69,6 +69,7 @@ interface AnalyticsEventPayload {
 
 interface AnalyticsSettingsPayload {
   hasUnlock?: unknown;
+  goalAnimation?: unknown;
   layout?: unknown;
   mode?: unknown;
   playoffsOnly?: unknown;
@@ -122,6 +123,7 @@ const ANALYTICS_EVENT_TYPES = new Set([
   'overlay_loaded',
   'live_goal_overlay_loaded',
 ]);
+const ANALYTICS_GOAL_ANIMATIONS = new Set(['logo-storm', 'jumbotron', 'logo-rain']);
 const ANALYTICS_LAYOUTS = new Set(['compact', 'stacked']);
 const ANALYTICS_MODES = new Set(['auto', 'manual']);
 const ANALYTICS_STYLES = new Set(['broadcast', 'classic', 'minimal', 'arena']);

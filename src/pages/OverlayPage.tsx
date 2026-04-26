@@ -36,6 +36,7 @@ export function OverlayPage() {
           muted={config.muted}
           style={config.style}
           layout={config.layout}
+          goalAnimation={config.goalAnimation}
           showCredit
           className="overlay-card"
         />

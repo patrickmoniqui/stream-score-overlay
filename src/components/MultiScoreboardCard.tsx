@@ -7,7 +7,7 @@ import {
 } from '../lib/format';
 import { isFinalGame, isLiveGame } from '../lib/gameSelection';
 import { useCreditReveal } from '../lib/useCreditReveal';
-import type { NhlGame, OverlayLayout, OverlayStyle } from '../lib/types';
+import type { GoalAnimationStyle, NhlGame, OverlayLayout, OverlayStyle } from '../lib/types';
 
 interface MultiScoreboardCardProps {
   primaryGame: NhlGame | null;
@@ -15,6 +15,7 @@ interface MultiScoreboardCardProps {
   showClock: boolean;
   layout: OverlayLayout;
   style: OverlayStyle;
+  goalAnimation?: GoalAnimationStyle;
   showCredit: boolean;
   className?: string;
   emptyLabel?: string;

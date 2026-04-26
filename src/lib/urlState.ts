@@ -1,5 +1,5 @@
 import { isOverlayStyle } from './overlayStyles';
-import type { OverlayConfig } from './types';
+import type { GoalAnimationStyle, OverlayConfig } from './types';
 
 export const MIN_REFRESH_SECONDS = 10;
 export const MAX_REFRESH_SECONDS = 60;
@@ -8,6 +8,7 @@ export const DEFAULT_CONFIG: OverlayConfig = {
   mode: 'auto',
   style: 'broadcast',
   layout: 'compact',
+  goalAnimation: 'logo-storm',
   teams: [],
   refreshSeconds: MIN_REFRESH_SECONDS,
   playoffsOnly: true,
@@ -34,6 +35,10 @@ function normalizeTeams(values: string[]): string[] {
   );
 }
 
+function isGoalAnimationStyle(value: string): value is GoalAnimationStyle {
+  return ['logo-storm', 'jumbotron', 'logo-rain'].includes(value);
+}
+
 function normalizeRefreshSeconds(value: string | null): number {
   const parsed = Number(value);
 
@@ -52,6 +57,11 @@ export function parseConfig(search: string): OverlayConfig {
   const style =
     styleParam && isOverlayStyle(styleParam) ? styleParam : DEFAULT_CONFIG.style;
   const layout = params.get('layout') === 'stacked' ? 'stacked' : DEFAULT_CONFIG.layout;
+  const goalAnimationParam = params.get('goalAnimation') ?? params.get('goal');
+  const goalAnimation =
+    goalAnimationParam && isGoalAnimationStyle(goalAnimationParam)
+      ? goalAnimationParam
+      : DEFAULT_CONFIG.goalAnimation;
   const teamsParam = params.get('teams');
   const legacyTeam = params.get('team');
   const gameIdRaw = params.get('gameId');
@@ -68,6 +78,7 @@ export function parseConfig(search: string): OverlayConfig {
     mode,
     style,
     layout,
+    goalAnimation,
     teams,
     gameId: Number.isFinite(gameId) ? gameId : undefined,
     refreshSeconds,
@@ -85,6 +96,7 @@ export function buildOverlayUrl(config: OverlayConfig): string {
 
   overlayUrl.searchParams.set('style', config.style);
   overlayUrl.searchParams.set('layout', config.layout);
+  overlayUrl.searchParams.set('goalAnimation', config.goalAnimation);
   overlayUrl.searchParams.set('refresh', String(refreshSeconds));
   overlayUrl.searchParams.set('playoffs', config.playoffsOnly ? '1' : '0');
   overlayUrl.searchParams.set('clock', config.showClock ? '1' : '0');
