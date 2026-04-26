@@ -144,6 +144,21 @@ function compareLivePriority(a: NhlGame, b: NhlGame): number {
   return compareAscending(a, b);
 }
 
+function getSelectedTeamPriority(game: NhlGame, teamPriority: Map<string, number>): number {
+  const awayPriority = teamPriority.get(game.awayTeam.abbrev) ?? Number.MAX_SAFE_INTEGER;
+  const homePriority = teamPriority.get(game.homeTeam.abbrev) ?? Number.MAX_SAFE_INTEGER;
+
+  return Math.min(awayPriority, homePriority);
+}
+
+function compareSelectedTeamPriority(
+  a: NhlGame,
+  b: NhlGame,
+  teamPriority: Map<string, number>,
+): number {
+  return getSelectedTeamPriority(a, teamPriority) - getSelectedTeamPriority(b, teamPriority);
+}
+
 function buildSelection(
   displayMode: DataSnapshot['displayMode'],
   selectedGames: NhlGame[],
@@ -179,6 +194,7 @@ export function buildGameSelection(
     return buildSelection('single', selectedGame ? [selectedGame] : []);
   }
 
+  const teamPriority = new Map(config.teams.map((team, index) => [team, index]));
   const selectedTeams = new Set(config.teams);
   const filteredGames =
     selectedTeams.size
@@ -193,7 +209,12 @@ export function buildGameSelection(
     return buildSelection('single', []);
   }
 
-  const liveGames = filteredGames.filter(isLiveGame).sort(compareLivePriority);
+  const comparePriority = (a: NhlGame, b: NhlGame) =>
+    selectedTeams.size ? compareSelectedTeamPriority(a, b, teamPriority) : 0;
+
+  const liveGames = filteredGames
+    .filter(isLiveGame)
+    .sort((a, b) => comparePriority(a, b) || compareLivePriority(a, b));
 
   if (liveGames.length > 1) {
     return buildSelection('multi', liveGames.slice(0, MAX_MULTI_GAMES));
@@ -205,19 +226,24 @@ export function buildGameSelection(
 
   const upcomingGames = filteredGames
     .filter((game) => isUpcomingGame(game) || getStartMs(game) >= now)
-    .sort(compareAscending);
+    .sort((a, b) => comparePriority(a, b) || compareAscending(a, b));
 
   if (upcomingGames.length) {
     return buildSelection('single', [upcomingGames[0]]);
   }
 
-  const finalGames = filteredGames.filter(isFinalGame).sort(compareDescending);
+  const finalGames = filteredGames
+    .filter(isFinalGame)
+    .sort((a, b) => comparePriority(a, b) || compareDescending(a, b));
 
   if (finalGames.length) {
     return buildSelection('single', [finalGames[0]]);
   }
 
-  return buildSelection('single', filteredGames.sort(compareAscending).slice(0, 1));
+  return buildSelection(
+    'single',
+    filteredGames.sort((a, b) => comparePriority(a, b) || compareAscending(a, b)).slice(0, 1),
+  );
 }
 
 export function selectGame(

@@ -25,6 +25,9 @@ import {
 import type { OverlayConfig } from '../lib/types';
 
 const SELECTABLE_NHL_TEAMS = NHL_TEAMS.filter((team) => team.abbrev !== 'AUTO');
+const SELECTABLE_NHL_TEAM_BY_ABBREV: Map<string, (typeof SELECTABLE_NHL_TEAMS)[number]> = new Map(
+  SELECTABLE_NHL_TEAMS.map((team) => [team.abbrev, team]),
+);
 const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '[::1]']);
 const GOAL_ANIMATION_OPTIONS = [
   {
@@ -88,6 +91,8 @@ export function SettingsPage() {
     null,
   );
   const [twitchGateError, setTwitchGateError] = useState<string | null>(null);
+  const [draggedTeamIndex, setDraggedTeamIndex] = useState<number | null>(null);
+  const [dragOverTeamIndex, setDragOverTeamIndex] = useState<number | null>(null);
   const overlayLinkRef = useRef<HTMLTextAreaElement | null>(null);
   const lastOverlayLinkCopyTrackedAtRef = useRef(0);
   const { data, error, loading } = useOverlayData(config);
@@ -98,9 +103,10 @@ export function SettingsPage() {
   const selectedGoalAnimation =
     GOAL_ANIMATION_OPTIONS.find((option) => option.value === config.goalAnimation) ??
     GOAL_ANIMATION_OPTIONS[0];
-  const selectedTeamNames = SELECTABLE_NHL_TEAMS.filter((team) =>
-    config.teams.includes(team.abbrev),
-  ).map((team) => team.name);
+  const selectedTeams = config.teams
+    .map((teamAbbrev) => SELECTABLE_NHL_TEAM_BY_ABBREV.get(teamAbbrev))
+    .filter((team) => team !== undefined);
+  const selectedTeamNames = selectedTeams.map((team) => team.name);
   const teamPickerLabel =
     config.teams.length === 0
       ? 'Auto (follow schedule)'
@@ -223,25 +229,49 @@ export function SettingsPage() {
 
   function toggleTeam(teamAbbrev: string) {
     setConfig((current) => {
-      const selectedTeams = new Set(current.teams);
+      const selectedTeams = current.teams.filter((team) => team !== teamAbbrev);
 
-      if (selectedTeams.has(teamAbbrev)) {
-        selectedTeams.delete(teamAbbrev);
-      } else {
-        selectedTeams.add(teamAbbrev);
+      if (!current.teams.includes(teamAbbrev)) {
+        selectedTeams.push(teamAbbrev);
       }
-
-      const nextTeams = SELECTABLE_NHL_TEAMS.filter((team) =>
-        selectedTeams.has(team.abbrev),
-      ).map((team) => team.abbrev);
 
       return {
         ...current,
         mode: 'auto',
-        teams: nextTeams,
+        teams: selectedTeams,
         gameId: undefined,
       };
     });
+  }
+
+  function reorderTeam(fromIndex: number, toIndex: number) {
+    if (
+      fromIndex === toIndex ||
+      fromIndex < 0 ||
+      toIndex < 0 ||
+      fromIndex >= config.teams.length ||
+      toIndex >= config.teams.length
+    ) {
+      return;
+    }
+
+    setConfig((current) => {
+      const teams = [...current.teams];
+      const [movedTeam] = teams.splice(fromIndex, 1);
+      teams.splice(toIndex, 0, movedTeam);
+
+      return {
+        ...current,
+        mode: 'auto',
+        teams,
+        gameId: undefined,
+      };
+    });
+  }
+
+  function resetTeamDragState() {
+    setDraggedTeamIndex(null);
+    setDragOverTeamIndex(null);
   }
 
   return (
@@ -302,7 +332,7 @@ export function SettingsPage() {
               <div className="team-picker-popover">
                 <div className="team-picker-actions">
                   <p className="team-picker-copy">
-                    Check one or more teams to follow.
+                    Check teams to follow. Drag selected teams to set priority.
                   </p>
                   <button
                     type="button"
@@ -320,6 +350,88 @@ export function SettingsPage() {
                     Clear all
                   </button>
                 </div>
+                {selectedTeams.length > 1 ? (
+                  <div
+                    className={`team-priority-list${draggedTeamIndex === null ? '' : ' is-drag-active'}`}
+                    aria-label="Team priority order"
+                  >
+                    {selectedTeams.map((team, index) => {
+                      const isDragging = draggedTeamIndex === index;
+                      const isDragOver =
+                        dragOverTeamIndex === index && draggedTeamIndex !== index;
+                      const dropDirection =
+                        draggedTeamIndex !== null && draggedTeamIndex < index
+                          ? ' after'
+                          : ' before';
+
+                      return (
+                        <div
+                          key={team.abbrev}
+                          className={`team-priority-item${isDragging ? ' is-dragging' : ''}${isDragOver ? ` is-drag-over is-drop-${dropDirection.trim()}` : ''}`}
+                          draggable
+                          onDragStart={(event) => {
+                            setDraggedTeamIndex(index);
+                            setDragOverTeamIndex(index);
+                            event.dataTransfer.effectAllowed = 'move';
+                            event.dataTransfer.setData('text/plain', String(index));
+                          }}
+                          onDragEnter={() => setDragOverTeamIndex(index)}
+                          onDragOver={(event) => {
+                            event.preventDefault();
+                            event.dataTransfer.dropEffect = 'move';
+                            setDragOverTeamIndex(index);
+                          }}
+                          onDragLeave={(event) => {
+                            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                              setDragOverTeamIndex(null);
+                            }
+                          }}
+                          onDragEnd={resetTeamDragState}
+                          onDrop={(event) => {
+                            event.preventDefault();
+                            reorderTeam(
+                              Number(event.dataTransfer.getData('text/plain')),
+                              index,
+                            );
+                            resetTeamDragState();
+                          }}
+                        >
+                          <span className="team-priority-handle" aria-hidden="true" />
+                          <span className="team-priority-rank">{index + 1}</span>
+                          {'logo' in team ? (
+                            <img
+                              src={team.logo}
+                              alt=""
+                              className="team-priority-logo"
+                              loading="lazy"
+                              aria-hidden="true"
+                            />
+                          ) : null}
+                          <span className="team-priority-name">{team.name}</span>
+                          <span className="team-priority-code">{team.abbrev}</span>
+                          <div className="team-priority-controls" aria-label="Move team">
+                            <button
+                              type="button"
+                              onClick={() => reorderTeam(index, index - 1)}
+                              disabled={index === 0}
+                              aria-label={`Move ${team.name} up`}
+                            >
+                              Up
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => reorderTeam(index, index + 1)}
+                              disabled={index === selectedTeams.length - 1}
+                              aria-label={`Move ${team.name} down`}
+                            >
+                              Down
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : null}
                 <div className="team-picker-grid">
                   {SELECTABLE_NHL_TEAMS.map((team) => {
                     const checked = config.teams.includes(team.abbrev);
