@@ -838,6 +838,68 @@ textarea {
   border: 1px solid rgba(255, 141, 141, 0.24);
 }
 
+.live-goal-shell {
+  width: 100%;
+  min-height: 100vh;
+  background: transparent;
+  overflow: hidden;
+}
+
+.live-goal-page,
+.live-goal-stage {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.live-goal-stage {
+  isolation: isolate;
+}
+
+.live-goal-stage .goal-flash {
+  position: fixed;
+  --goal-flash-duration: 30s;
+}
+
+.live-goal-stage .goal-flash-content {
+  gap: clamp(20px, 4vw, 48px);
+}
+
+.live-goal-stage .goal-flash-kicker {
+  font-size: clamp(5rem, 18vw, 18rem);
+  letter-spacing: 0.12em;
+}
+
+.live-goal-stage .goal-flash-team {
+  gap: clamp(18px, 4vw, 52px);
+}
+
+.live-goal-stage .goal-flash-logo,
+.live-goal-stage .goal-flash-logo-fallback {
+  width: clamp(110px, 18vw, 260px);
+  height: clamp(110px, 18vw, 260px);
+}
+
+.live-goal-stage .goal-flash-logo-fallback,
+.live-goal-stage .goal-flash-abbrev {
+  font-size: clamp(4rem, 10vw, 12rem);
+}
+
+.live-goal-error {
+  position: fixed;
+  left: 18px;
+  bottom: 18px;
+  max-width: min(520px, calc(100vw - 36px));
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: rgba(15, 30, 48, 0.9);
+  color: var(--danger);
+  border: 1px solid rgba(255, 141, 141, 0.24);
+}
+
 .scoreboard-card {
   --scorebug-radius: 0;
   --scorebug-border: rgba(255, 255, 255, 0.08);

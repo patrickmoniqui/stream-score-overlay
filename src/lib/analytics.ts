@@ -7,7 +7,8 @@ const INSTALL_ID_STORAGE_KEY = 'nhl-live-feed-install-id';
 export type AnalyticsEventType =
   | 'settings_opened'
   | 'overlay_link_copied'
-  | 'overlay_loaded';
+  | 'overlay_loaded'
+  | 'live_goal_overlay_loaded';
 
 interface AnalyticsEventPayload {
   appVersion: string;

@@ -120,6 +120,7 @@ const ANALYTICS_EVENT_TYPES = new Set([
   'settings_opened',
   'overlay_link_copied',
   'overlay_loaded',
+  'live_goal_overlay_loaded',
 ]);
 const ANALYTICS_LAYOUTS = new Set(['compact', 'stacked']);
 const ANALYTICS_MODES = new Set(['auto', 'manual']);

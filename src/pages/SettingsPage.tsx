@@ -72,6 +72,7 @@ export function SettingsPage() {
   );
   const [twitchGateError, setTwitchGateError] = useState<string | null>(null);
   const overlayLinkRef = useRef<HTMLTextAreaElement | null>(null);
+  const lastOverlayLinkCopyTrackedAtRef = useRef(0);
   const { data, error, loading } = useOverlayData(config);
   const previousGame = findPreviousFinalGame(data.selectedGame, data.games);
   const selectedStyle =
@@ -166,8 +167,7 @@ export function SettingsPage() {
         overlayLinkField.setSelectionRange(0, overlayLinkField.value.length);
 
         if (document.execCommand('copy')) {
-          void trackAnalyticsEvent('overlay_link_copied', config, { installId });
-          setCopied(true);
+          handleOverlayLinkCopied();
           return;
         }
       }
@@ -178,6 +178,18 @@ export function SettingsPage() {
       return;
     }
 
+    handleOverlayLinkCopied();
+  }
+
+  function handleOverlayLinkCopied() {
+    const now = Date.now();
+
+    if (now - lastOverlayLinkCopyTrackedAtRef.current < 1_000) {
+      setCopied(true);
+      return;
+    }
+
+    lastOverlayLinkCopyTrackedAtRef.current = now;
     void trackAnalyticsEvent('overlay_link_copied', config, { installId });
     setCopied(true);
   }
@@ -443,6 +455,7 @@ export function SettingsPage() {
               readOnly
               value={trackedOverlayUrl}
               rows={4}
+              onCopy={handleOverlayLinkCopied}
             />
           </div>
 

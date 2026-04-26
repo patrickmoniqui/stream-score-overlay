@@ -42,6 +42,7 @@ export default defineConfig(({ command }) => {
           admin: resolve(rootDir, 'admin/index.html'),
           gameScore: resolve(rootDir, 'game-score/index.html'),
           gameScoreOverlay: resolve(rootDir, 'game-score/overlay.html'),
+          liveGoalOverlay: resolve(rootDir, 'live-goal/overlay.html'),
         },
       },
     },
