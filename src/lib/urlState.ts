@@ -112,3 +112,26 @@ export function buildOverlayUrl(config: OverlayConfig): string {
 
   return overlayUrl.toString();
 }
+
+export function buildLiveGoalOverlayUrl(config: OverlayConfig): string {
+  const overlayUrl = new URL('./live-goal/overlay.html', window.location.href);
+  const refreshSeconds = normalizeRefreshSeconds(String(config.refreshSeconds));
+
+  overlayUrl.searchParams.set('style', config.style);
+  overlayUrl.searchParams.set('layout', config.layout);
+  overlayUrl.searchParams.set('goalAnimation', config.goalAnimation);
+  overlayUrl.searchParams.set('refresh', String(refreshSeconds));
+  overlayUrl.searchParams.set('playoffs', config.playoffsOnly ? '1' : '0');
+  overlayUrl.searchParams.set('clock', config.showClock ? '1' : '0');
+  overlayUrl.searchParams.set('mute', config.muted ? '1' : '0');
+
+  if (config.teams.length) {
+    overlayUrl.searchParams.set('teams', config.teams.join(','));
+  }
+
+  if (config.gameId) {
+    overlayUrl.searchParams.set('gameId', String(config.gameId));
+  }
+
+  return overlayUrl.toString();
+}

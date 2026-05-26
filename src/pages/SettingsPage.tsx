@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { SelectedScoreboardCard } from '../components/SelectedScoreboardCard';
 import { isTwitchGateEnabled } from '../lib/features';
 import { OVERLAY_STYLE_OPTIONS } from '../lib/overlayStyles';
@@ -10,6 +10,7 @@ import {
   type TwitchGateStatus,
 } from '../lib/twitchGate';
 import {
+  buildTrackedLiveGoalOverlayUrl,
   buildTrackedOverlayUrl,
   getAnalyticsInstallId,
   trackAnalyticsEvent,
@@ -85,7 +86,8 @@ export function SettingsPage() {
     key: number;
     alignment: 'away' | 'home';
   } | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [overlayCopied, setOverlayCopied] = useState(false);
+  const [liveGoalCopied, setLiveGoalCopied] = useState(false);
   const [copyError, setCopyError] = useState<string | null>(null);
   const [twitchGateStatus, setTwitchGateStatus] = useState<TwitchGateStatus | null>(
     null,
@@ -94,7 +96,9 @@ export function SettingsPage() {
   const [draggedTeamIndex, setDraggedTeamIndex] = useState<number | null>(null);
   const [dragOverTeamIndex, setDragOverTeamIndex] = useState<number | null>(null);
   const overlayLinkRef = useRef<HTMLTextAreaElement | null>(null);
+  const liveGoalLinkRef = useRef<HTMLTextAreaElement | null>(null);
   const lastOverlayLinkCopyTrackedAtRef = useRef(0);
+  const lastLiveGoalLinkCopyTrackedAtRef = useRef(0);
   const { data, error, loading } = useOverlayData(config);
   const previousGame = findPreviousFinalGame(data.selectedGame, data.games);
   const selectedStyle =
@@ -114,6 +118,7 @@ export function SettingsPage() {
         ? selectedTeamNames.join(', ')
         : `${config.teams.length} teams selected`;
   const trackedOverlayUrl = buildTrackedOverlayUrl(config, installId);
+  const trackedLiveGoalOverlayUrl = buildTrackedLiveGoalOverlayUrl(config, installId);
 
   useEffect(() => {
     const nextSearch = new URL(buildOverlayUrl(config)).search;
@@ -125,14 +130,24 @@ export function SettingsPage() {
   }, [installId]);
 
   useEffect(() => {
-    if (!copied) {
+    if (!overlayCopied) {
       return;
     }
 
-    const timeoutId = window.setTimeout(() => setCopied(false), 1_500);
+    const timeoutId = window.setTimeout(() => setOverlayCopied(false), 1_500);
 
     return () => window.clearTimeout(timeoutId);
-  }, [copied]);
+  }, [overlayCopied]);
+
+  useEffect(() => {
+    if (!liveGoalCopied) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => setLiveGoalCopied(false), 1_500);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [liveGoalCopied]);
 
   useEffect(() => {
     if (!twitchGateEnabled) {
@@ -175,17 +190,22 @@ export function SettingsPage() {
     }
   }, [twitchGateEnabled, twitchGateStatus]);
 
-  async function copyUrl() {
+  async function copyUrl(
+    url: string,
+    linkRef: RefObject<HTMLTextAreaElement | null>,
+    onCopied: () => void,
+    label: string,
+  ) {
     setCopyError(null);
 
     try {
       if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(trackedOverlayUrl);
+        await navigator.clipboard.writeText(url);
       } else {
         throw new Error('Clipboard API unavailable');
       }
     } catch {
-      const overlayLinkField = overlayLinkRef.current;
+      const overlayLinkField = linkRef.current;
 
       if (overlayLinkField) {
         overlayLinkField.focus();
@@ -193,31 +213,47 @@ export function SettingsPage() {
         overlayLinkField.setSelectionRange(0, overlayLinkField.value.length);
 
         if (document.execCommand('copy')) {
-          handleOverlayLinkCopied();
+          onCopied();
           return;
         }
       }
 
       setCopyError(
-        'Clipboard access was blocked. The overlay link is highlighted so you can copy it manually.',
+        `Clipboard access was blocked. The ${label} is highlighted so you can copy it manually.`,
       );
       return;
     }
 
-    handleOverlayLinkCopied();
+    onCopied();
   }
 
   function handleOverlayLinkCopied() {
     const now = Date.now();
 
     if (now - lastOverlayLinkCopyTrackedAtRef.current < 1_000) {
-      setCopied(true);
+      setOverlayCopied(true);
       return;
     }
 
     lastOverlayLinkCopyTrackedAtRef.current = now;
     void trackAnalyticsEvent('overlay_link_copied', config, { installId });
-    setCopied(true);
+    setOverlayCopied(true);
+  }
+
+  function handleLiveGoalLinkCopied() {
+    const now = Date.now();
+
+    if (now - lastLiveGoalLinkCopyTrackedAtRef.current < 1_000) {
+      setLiveGoalCopied(true);
+      return;
+    }
+
+    lastLiveGoalLinkCopyTrackedAtRef.current = now;
+    void trackAnalyticsEvent('overlay_link_copied', config, {
+      installId,
+      pathname: '/live-goal/overlay.html',
+    });
+    setLiveGoalCopied(true);
   }
 
   function triggerPreviewGoal(alignment: 'away' | 'home') {
@@ -623,9 +659,46 @@ export function SettingsPage() {
           <button
             className="primary-button"
             type="button"
-            onClick={() => void copyUrl()}
+            onClick={() =>
+              void copyUrl(
+                trackedOverlayUrl,
+                overlayLinkRef,
+                handleOverlayLinkCopied,
+                'overlay link',
+              )
+            }
           >
-            {copied ? 'Copied' : 'Copy overlay link'}
+            {overlayCopied ? 'Copied' : 'Copy overlay link'}
+          </button>
+
+          <div className="field">
+            <span>Live goal animation URL</span>
+            <textarea
+              ref={liveGoalLinkRef}
+              readOnly
+              value={trackedLiveGoalOverlayUrl}
+              rows={4}
+              onCopy={handleLiveGoalLinkCopied}
+            />
+            <small className="field-hint">
+              Use this as a separate browser source for full-screen goal
+              animations.
+            </small>
+          </div>
+
+          <button
+            className="secondary-button full-width-button"
+            type="button"
+            onClick={() =>
+              void copyUrl(
+                trackedLiveGoalOverlayUrl,
+                liveGoalLinkRef,
+                handleLiveGoalLinkCopied,
+                'live goal animation URL',
+              )
+            }
+          >
+            {liveGoalCopied ? 'Copied' : 'Copy live goal URL'}
           </button>
           {copyError ? <p className="helper-text helper-error">{copyError}</p> : null}
 

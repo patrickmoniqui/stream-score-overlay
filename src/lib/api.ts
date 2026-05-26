@@ -1,6 +1,16 @@
 import { getApiBaseUrl } from './config';
 import type { ScheduleResponse, ScoreResponse } from './types';
 
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(status: number) {
+    super(`Request failed with status ${status}`);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
 async function fetchJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
     signal,
@@ -10,7 +20,7 @@ async function fetchJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   });
 
   if (!response.ok) {
-    throw new Error(`Request failed with status ${response.status}`);
+    throw new ApiError(response.status);
   }
 
   return response.json() as Promise<T>;

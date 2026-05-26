@@ -890,6 +890,10 @@ textarea {
   background: var(--accent-strong);
 }
 
+.primary-button + .field {
+  margin-top: 18px;
+}
+
 .helper-text {
   margin: 14px 0 0;
   color: var(--muted);
@@ -963,6 +967,10 @@ textarea {
 .secondary-button:disabled {
   opacity: 0.46;
   cursor: not-allowed;
+}
+
+.full-width-button {
+  width: 100%;
 }
 
 .ghost-link {

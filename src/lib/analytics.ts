@@ -1,6 +1,6 @@
 import { getApiBaseUrl } from './config';
 import type { OverlayConfig } from './types';
-import { buildOverlayUrl } from './urlState';
+import { buildLiveGoalOverlayUrl, buildOverlayUrl } from './urlState';
 
 const INSTALL_ID_STORAGE_KEY = 'nhl-live-feed-install-id';
 
@@ -114,6 +114,15 @@ export function buildTrackedOverlayUrl(
   installId = getAnalyticsInstallId(),
 ): string {
   const overlayUrl = new URL(buildOverlayUrl(config));
+  overlayUrl.searchParams.set('install', installId);
+  return overlayUrl.toString();
+}
+
+export function buildTrackedLiveGoalOverlayUrl(
+  config: OverlayConfig,
+  installId = getAnalyticsInstallId(),
+): string {
+  const overlayUrl = new URL(buildLiveGoalOverlayUrl(config));
   overlayUrl.searchParams.set('install', installId);
   return overlayUrl.toString();
 }

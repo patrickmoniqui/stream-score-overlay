@@ -144,18 +144,15 @@ export function useOverlayData(config: OverlayConfig): OverlayDataState {
           loadData,
           getRefreshInterval(config.refreshSeconds),
         );
-      } catch (error) {
+      } catch {
         if (cancelled) {
           return;
         }
 
-        const message =
-          error instanceof Error ? error.message : 'Unable to load NHL data.';
-
         setState((currentState) => ({
           data: currentState.data,
           loading: false,
-          error: message,
+          error: null,
         }));
 
         timeoutId = window.setTimeout(
