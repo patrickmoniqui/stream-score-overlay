@@ -199,27 +199,6 @@ export function GlobeSettingsPage() {
             />
           </label>
 
-          <label className="field">
-            <div className="field-header">
-              <span>Marker limit</span>
-              <span className="field-value">{config.markerLimit}</span>
-            </div>
-            <input
-              className="range-input"
-              type="range"
-              min="10"
-              max="250"
-              step="5"
-              value={config.markerLimit}
-              onChange={(event) =>
-                setConfig((current) => ({
-                  ...current,
-                  markerLimit: Number(event.target.value),
-                }))
-              }
-            />
-          </label>
-
           <label className="toggle">
             <input
               type="checkbox"

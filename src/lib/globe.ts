@@ -5,7 +5,6 @@ export interface GlobeConfig {
   sessionId: string;
   rotationSpeed: number;
   showLabels: boolean;
-  markerLimit: number;
   transparent: boolean;
 }
 
@@ -26,16 +25,13 @@ export interface GlobeCheckIn {
 export const DEFAULT_GLOBE_CONFIG: GlobeConfig = {
   channel: '',
   sessionId: '',
-  rotationSpeed: 0.16,
+  rotationSpeed: 0.1,
   showLabels: true,
-  markerLimit: 75,
   transparent: true,
 };
 
 const MIN_ROTATION_SPEED = 0;
 const MAX_ROTATION_SPEED = 0.6;
-const MIN_MARKER_LIMIT = 10;
-const MAX_MARKER_LIMIT = 250;
 
 function clampNumber(value: number, minimum: number, maximum: number): number {
   if (!Number.isFinite(value)) {
@@ -72,20 +68,12 @@ export function parseGlobeConfig(search: string): GlobeConfig {
     MIN_ROTATION_SPEED,
     MAX_ROTATION_SPEED,
   );
-  const markerLimit = Math.round(
-    clampNumber(
-      Number(params.get('limit') ?? DEFAULT_GLOBE_CONFIG.markerLimit),
-      MIN_MARKER_LIMIT,
-      MAX_MARKER_LIMIT,
-    ),
-  );
 
   return {
     channel: normalizeTwitchChannel(params.get('channel') ?? ''),
     sessionId: params.get('session')?.trim() || createGlobeSessionId(),
     rotationSpeed,
     showLabels: parseBoolean(params.get('labels'), DEFAULT_GLOBE_CONFIG.showLabels),
-    markerLimit,
     transparent: parseBoolean(
       params.get('transparent'),
       DEFAULT_GLOBE_CONFIG.transparent,
@@ -99,7 +87,6 @@ export function buildGlobeOverlayUrl(config: GlobeConfig): string {
   overlayUrl.searchParams.set('session', config.sessionId);
   overlayUrl.searchParams.set('speed', config.rotationSpeed.toFixed(2));
   overlayUrl.searchParams.set('labels', config.showLabels ? '1' : '0');
-  overlayUrl.searchParams.set('limit', String(config.markerLimit));
   overlayUrl.searchParams.set('transparent', config.transparent ? '1' : '0');
 
   if (config.channel) {

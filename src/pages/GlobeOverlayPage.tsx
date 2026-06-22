@@ -824,16 +824,12 @@ export function GlobeOverlayPage() {
 
     void fetchGlobeCheckIns(config.sessionId, controller.signal)
       .then((loadedCheckIns) => {
-        setCheckIns(
-          loadedCheckIns
-            .sort((a, b) => b.updatedAt - a.updatedAt)
-            .slice(0, config.markerLimit),
-        );
+        setCheckIns(loadedCheckIns.sort((a, b) => b.updatedAt - a.updatedAt));
       })
       .catch(() => setStatus('Unable to load saved check-ins.'));
 
     return () => controller.abort();
-  }, [config.markerLimit, config.sessionId]);
+  }, [config.sessionId]);
 
   useEffect(() => {
     return connectTwitchCheckInChat({
@@ -879,7 +875,7 @@ export function GlobeOverlayPage() {
           });
       },
     });
-  }, [config.channel, config.markerLimit, config.sessionId]);
+  }, [config.channel, config.sessionId]);
 
   return (
     <main className={config.transparent ? 'globe-overlay is-transparent' : 'globe-overlay'}>
@@ -888,9 +884,7 @@ export function GlobeOverlayPage() {
         config={config}
         focusCheckIn={focusCheckIn}
         onFocusMarkerPlace={(checkIn) => {
-          setCheckIns((current) =>
-            upsertCheckIn(current, checkIn).slice(0, config.markerLimit),
-          );
+          setCheckIns((current) => upsertCheckIn(current, checkIn));
         }}
         onFocusComplete={(checkIn) => {
           setFocusCheckIn((current) =>
