@@ -1135,11 +1135,11 @@ body.globe-transparent-shell {
   position: absolute;
   top: 0;
   left: 0;
-  max-width: min(420px, 56vw);
+  max-width: min(calc(var(--globe-screen-diameter, 520px) * 0.7), 56vw);
   transform: translate3d(var(--marker-label-offset-x, 0px), var(--marker-label-offset-y, 0px), 0);
   transform-origin: center bottom;
   color: #f8fbff;
-  font-size: clamp(1.24rem, 2.2vw, 1.72rem);
+  font-size: clamp(1rem, calc(var(--globe-screen-diameter, 520px) * 0.032), 1.56rem);
   font-weight: 900;
   letter-spacing: 0.02em;
   line-height: 1.05;

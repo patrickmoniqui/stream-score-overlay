@@ -487,7 +487,7 @@ function createCountryFillMeshFromPolygon(
   const vertices = new Float32Array(positions.length * 3);
 
   positions.forEach(([longitude, latitude], index) => {
-    const vertex = latLonToVector(latitude, longitude, GLOBE_RADIUS * 1.001);
+    const vertex = latLonToVector(latitude, longitude, GLOBE_RADIUS * 0.9985);
     vertices[index * 3] = vertex.x;
     vertices[index * 3 + 1] = vertex.y;
     vertices[index * 3 + 2] = vertex.z;
@@ -498,7 +498,7 @@ function createCountryFillMeshFromPolygon(
   geometry.setIndex(triangles.flat());
 
   const mesh = new THREE.Mesh(geometry, material);
-  mesh.renderOrder = 1;
+  mesh.renderOrder = 0;
   return mesh;
 }
 
@@ -791,6 +791,8 @@ export function GlobeScene({
     const worldSurfacePosition = new THREE.Vector3();
     const surfaceNormal = new THREE.Vector3();
     const cameraDirection = new THREE.Vector3();
+    const projectedGlobeCenter = new THREE.Vector3();
+    const projectedGlobeEdge = new THREE.Vector3();
     const projectedLabelPosition = new THREE.Vector3();
     const globePosition = new THREE.Vector3();
     const globeRotation = new THREE.Euler();
@@ -867,6 +869,18 @@ export function GlobeScene({
       renderer.getSize(rendererSize);
       globeCenter.setFromMatrixPosition(globeGroup.matrixWorld);
       camera.getWorldPosition(cameraPosition);
+
+      projectedGlobeCenter.copy(globeCenter).project(camera);
+      projectedGlobeEdge
+        .set(globeCenter.x + GLOBE_RADIUS, globeCenter.y, globeCenter.z)
+        .project(camera);
+      const globeRadiusPx =
+        Math.abs(projectedGlobeEdge.x - projectedGlobeCenter.x) * 0.5 * rendererSize.x;
+      const globeDiameterPx = Math.max(globeRadiusPx * 2, 220);
+      sceneContainer.style.setProperty(
+        '--globe-screen-diameter',
+        `${globeDiameterPx}px`,
+      );
 
       if (
         showDebugInfo &&
