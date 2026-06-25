@@ -25,6 +25,17 @@ const TEST_LOCATIONS = [
   'Cape Town, South Africa',
 ];
 const TEST_VIEWER_PREFIX = 'TestViewer';
+function normalizeColorInput(value: string, fallback: string): string {
+  const normalized = value.trim();
+
+  if (!normalized) {
+    return fallback;
+  }
+
+  const hexColor = normalized.startsWith('#') ? normalized : '#' + normalized;
+  return /^#[0-9a-fA-F]{6}$/.test(hexColor) ? hexColor.toLowerCase() : fallback;
+}
+
 const PREVIEW_CHECK_INS: GlobeCheckIn[] = [
   {
     id: 'preview-montreal',
@@ -364,6 +375,27 @@ export function GlobeSettingsPage() {
               }
             />
             Transparent OBS background
+          </label>
+
+          <label className="field">
+            <span>Globe color</span>
+            <input
+              className="admin-input"
+              type="color"
+              value={config.globeColor}
+              onChange={(event) =>
+                setConfig((current) => ({
+                  ...current,
+                  globeColor: normalizeColorInput(
+                    event.target.value,
+                    current.globeColor || DEFAULT_GLOBE_CONFIG.globeColor,
+                  ),
+                }))
+              }
+            />
+            <span className="field-hint">
+              Pick the default globe accent color for borders, fills, and light spots.
+            </span>
           </label>
 
           <button

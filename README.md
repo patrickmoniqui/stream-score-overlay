@@ -49,6 +49,39 @@ This starts:
 In this mode, Vite forwards `/api/*` to the local Worker so the app behaves much closer to production.
 Use this mode if you want to test analytics or soccer/football locally, since plain `npm run dev` proxies legacy `/api/*` requests straight to the NHL API.
 
+## Local frontend + Deployed Worker
+
+You have two ways to run the local frontend against a deployed Cloudflare Worker.
+
+Always use the deployed Worker:
+
+```powershell
+$env:VITE_API_BASE_URL = "https://your-worker-subdomain.workers.dev/api"
+npm run dev
+```
+
+Toggle to the deployed Worker with a query param only when you want it:
+
+1. Set a local override target in `.env.local`:
+
+```env
+VITE_CLOUD_API_BASE_URL=https://your-worker-subdomain.workers.dev/api
+```
+
+2. Start the frontend normally:
+
+```powershell
+npm run dev
+```
+
+3. Add `?backend=cloud` to the local page URL, for example:
+
+```
+http://localhost:5173/globe/overlay.html?backend=cloud
+```
+
+When that query param is present on localhost, the frontend uses `VITE_CLOUD_API_BASE_URL` instead of the local proxy. This is useful when you want to test the local UI against real Worker features like analytics, soccer routes, or deployed auth/config behavior without running Wrangler locally.
+
 ## Production setup
 
 GitHub Pages can host the frontend build, but it cannot host the proxy. For production:

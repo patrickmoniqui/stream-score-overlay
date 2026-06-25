@@ -7,6 +7,7 @@ export interface GlobeConfig {
   rotationSpeed: number;
   showLabels: boolean;
   transparent: boolean;
+  globeColor: string;
 }
 
 export interface GlobeCheckIn {
@@ -30,6 +31,7 @@ export const DEFAULT_GLOBE_CONFIG: GlobeConfig = {
   rotationSpeed: 1 / 15,
   showLabels: true,
   transparent: true,
+  globeColor: '#8fdcff',
 };
 
 const ROTATIONS_PER_SECOND_PER_SPEED_UNIT = 0.5;
@@ -40,6 +42,17 @@ function parseBoolean(value: string | null, fallback: boolean): boolean {
   }
 
   return ['1', 'true', 'yes', 'on'].includes(value.toLowerCase());
+}
+
+function normalizeGlobeColor(value: string | null | undefined, fallback: string): string {
+  const normalized = value?.trim() ?? '';
+
+  if (!normalized) {
+    return fallback;
+  }
+
+  const hexColor = normalized.startsWith('#') ? normalized : '#' + normalized;
+  return /^#[0-9a-fA-F]{6}$/.test(hexColor) ? hexColor.toLowerCase() : fallback;
 }
 
 export function createGlobeSessionId(): string {
@@ -82,6 +95,10 @@ export function parseGlobeConfig(search: string): GlobeConfig {
       params.get('transparent'),
       DEFAULT_GLOBE_CONFIG.transparent,
     ),
+    globeColor: normalizeGlobeColor(
+      params.get('color'),
+      DEFAULT_GLOBE_CONFIG.globeColor,
+    ),
   };
 }
 
@@ -99,6 +116,7 @@ export function buildGlobeOverlayUrl(config: GlobeConfig): string {
   overlayUrl.searchParams.set('animations', config.animateCheckIns ? '1' : '0');
   overlayUrl.searchParams.set('labels', config.showLabels ? '1' : '0');
   overlayUrl.searchParams.set('transparent', config.transparent ? '1' : '0');
+  overlayUrl.searchParams.set('color', normalizeGlobeColor(config.globeColor, DEFAULT_GLOBE_CONFIG.globeColor));
 
   return overlayUrl.toString();
 }

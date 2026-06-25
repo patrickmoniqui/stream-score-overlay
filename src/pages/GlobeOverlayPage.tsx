@@ -31,6 +31,8 @@ let hiddenCountryBorderOpacity = 0.1;
 
 interface GlobeMarkerVisual {
   element?: HTMLDivElement;
+  labelOffsetX?: number;
+  labelOffsetY?: number;
   labelPosition?: THREE.Vector3;
   objects: THREE.Object3D[];
   surfacePosition: THREE.Vector3;
@@ -46,6 +48,17 @@ interface GlobeLightSpot {
   count: number;
   latitude: number;
   longitude: number;
+}
+
+interface GlobeThemeColors {
+  activeOuter: THREE.Color;
+  activeInner: THREE.Color;
+  border: THREE.Color;
+  fill: THREE.Color;
+  marker: THREE.Color;
+  spotCore: string;
+  spotMid: string;
+  spotOuter: string;
 }
 
 type GeoJsonPosition = [number, number];
@@ -224,8 +237,41 @@ function createBorderLineFromRing(
   return new THREE.Line(geometry, material);
 }
 
-function createCountryBorderMaterial(): THREE.ShaderMaterial {
+function formatRgba(color: THREE.Color, alpha: number): string {
+  return `rgba(${Math.round(color.r * 255)}, ${Math.round(color.g * 255)}, ${Math.round(color.b * 255)}, ${alpha})`;
+}
+
+function getGlobeThemeColors(globeColor: string): GlobeThemeColors {
+  const baseColor = new THREE.Color(globeColor);
+  const border = baseColor.clone().lerp(new THREE.Color(0xffffff), 0.22);
+  const fill = baseColor.clone().offsetHSL(0, 0.03, -0.1);
+  const marker = baseColor.clone().lerp(new THREE.Color(0xffffff), 0.34);
+  const activeOuter = baseColor.clone().lerp(new THREE.Color(0xffffff), 0.12);
+  const activeInner = baseColor.clone().lerp(new THREE.Color(0xffffff), 0.82);
+  const spotMid = baseColor.clone().lerp(new THREE.Color(0xffffff), 0.2);
+  const spotOuter = baseColor.clone();
+
+  return {
+    activeOuter,
+    activeInner,
+    border,
+    fill,
+    marker,
+    spotCore: formatRgba(new THREE.Color(0xffffff), 0.32),
+    spotMid: formatRgba(spotMid, 0.2),
+    spotOuter: formatRgba(spotOuter, 0.08),
+  };
+}
+
+function createCountryBorderMaterial(
+  borderColor: THREE.ColorRepresentation,
+): THREE.ShaderMaterial {
+  const color = new THREE.Color(borderColor);
+
   return new THREE.ShaderMaterial({
+    uniforms: {
+      borderColor: { value: color },
+    },
     transparent: true,
     depthTest: false,
     depthWrite: false,
@@ -242,12 +288,13 @@ function createCountryBorderMaterial(): THREE.ShaderMaterial {
       }
     `,
     fragmentShader: `
+      uniform vec3 borderColor;
       varying float vFacing;
 
       void main() {
         float visibility = mix(0.1, 1.0, smoothstep(0.0, 0.2, vFacing));
         float alpha = visibility * 0.82;
-        gl_FragColor = vec4(0.56, 0.86, 1.0, alpha);
+        gl_FragColor = vec4(borderColor, alpha);
       }
     `,
   });
@@ -293,8 +340,15 @@ function createActiveCountryBorderMaterial(
   });
 }
 
-function createCountryFillMaterial(): THREE.ShaderMaterial {
+function createCountryFillMaterial(
+  fillColor: THREE.ColorRepresentation,
+): THREE.ShaderMaterial {
+  const color = new THREE.Color(fillColor);
+
   return new THREE.ShaderMaterial({
+    uniforms: {
+      fillColor: { value: color },
+    },
     transparent: true,
     depthTest: false,
     depthWrite: false,
@@ -311,6 +365,7 @@ function createCountryFillMaterial(): THREE.ShaderMaterial {
       }
     `,
     fragmentShader: `
+      uniform vec3 fillColor;
       varying float vFacing;
 
       void main() {
@@ -319,14 +374,23 @@ function createCountryFillMaterial(): THREE.ShaderMaterial {
         }
 
         float alpha = smoothstep(0.02, 0.18, vFacing) * 0.10;
-        gl_FragColor = vec4(0.20, 0.58, 1.0, alpha);
+        gl_FragColor = vec4(fillColor, alpha);
       }
     `,
   });
 }
-
 function getLocationClusterKey(checkIn: GlobeCheckIn): string {
   return `${Math.round(checkIn.latitude * 10) / 10}:${Math.round(checkIn.longitude * 10) / 10}`;
+}
+
+function getMarkerOffset(index: number, total: number): { x: number; y: number } {
+  const midpoint = (total - 1) / 2;
+  const distanceFromCenter = index - midpoint;
+
+  return {
+    x: Math.abs(distanceFromCenter) < 0.5 ? 0 : Math.sign(distanceFromCenter) * 16,
+    y: distanceFromCenter * 24,
+  };
 }
 
 function buildLightSpots(checkIns: GlobeCheckIn[]): GlobeLightSpot[] {
@@ -350,16 +414,16 @@ function buildLightSpots(checkIns: GlobeCheckIn[]): GlobeLightSpot[] {
   return Array.from(spotsByLocation.values());
 }
 
-function createSpotLightSprite(count: number): THREE.Sprite {
+function createSpotLightSprite(count: number, themeColors: GlobeThemeColors): THREE.Sprite {
   const canvas = document.createElement('canvas');
   canvas.width = 128;
   canvas.height = 128;
   const context = canvas.getContext('2d')!;
   const gradient = context.createRadialGradient(64, 64, 2, 64, 64, 60);
-  gradient.addColorStop(0, 'rgba(255, 255, 255, 0.32)');
-  gradient.addColorStop(0.2, 'rgba(160, 212, 255, 0.2)');
-  gradient.addColorStop(0.48, 'rgba(70, 166, 255, 0.08)');
-  gradient.addColorStop(1, 'rgba(70, 166, 255, 0)');
+  gradient.addColorStop(0, themeColors.spotCore);
+  gradient.addColorStop(0.2, themeColors.spotMid);
+  gradient.addColorStop(0.48, themeColors.spotOuter);
+  gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
   context.fillStyle = gradient;
   context.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -441,12 +505,13 @@ function createCountryFillMeshFromPolygon(
 function addCountryFills(
   fillGroup: THREE.Group,
   highlightedCountryKeys: Set<string>,
+  themeColors: GlobeThemeColors,
 ): void {
   if (!highlightedCountryKeys.size) {
     return;
   }
 
-  const material = createCountryFillMaterial();
+  const material = createCountryFillMaterial(themeColors.fill);
 
   for (const feature of COUNTRY_BORDERS.features ?? []) {
     if (!highlightedCountryKeys.has(getFeatureKey(feature))) {
@@ -479,8 +544,9 @@ function addCountryFills(
 function addCountryBorders(
   borderGroup: THREE.Group,
   borderData: CountryBorderCollection,
+  themeColors: GlobeThemeColors,
 ): void {
-  const material = createCountryBorderMaterial();
+  const material = createCountryBorderMaterial(themeColors.border);
 
   for (const feature of borderData.features ?? []) {
     const geometry = feature.geometry;
@@ -515,13 +581,14 @@ function addCountryBorders(
 function addActiveCountryBorders(
   activeCountryBorderGroup: THREE.Group,
   highlightedCountryKeys: Set<string>,
+  themeColors: GlobeThemeColors,
 ): void {
   if (!highlightedCountryKeys.size) {
     return;
   }
 
-  const outerMaterial = createActiveCountryBorderMaterial(0x2f9dff, 0.68);
-  const innerMaterial = createActiveCountryBorderMaterial(0xf2fbff, 1);
+  const outerMaterial = createActiveCountryBorderMaterial(themeColors.activeOuter, 0.68);
+  const innerMaterial = createActiveCountryBorderMaterial(themeColors.activeInner, 1);
 
   for (const countryKey of highlightedCountryKeys) {
     const feature = (COUNTRY_BORDERS.features ?? []).find(
@@ -607,6 +674,7 @@ export function GlobeScene({
   const markerVisualsRef = useRef<GlobeMarkerVisual[]>([]);
   const markerGroupRef = useRef<THREE.Group | null>(null);
   const fillGroupRef = useRef<THREE.Group | null>(null);
+  const borderGroupRef = useRef<THREE.Group | null>(null);
   const activeCountryBorderGroupRef = useRef<THREE.Group | null>(null);
   const globeGroupRef = useRef<THREE.Group | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -693,6 +761,7 @@ export function GlobeScene({
 
     const borderGroup = new THREE.Group();
     globeGroup.add(borderGroup);
+    borderGroupRef.current = borderGroup;
 
     const activeCountryBorderGroup = new THREE.Group();
     globeGroup.add(activeCountryBorderGroup);
@@ -702,7 +771,11 @@ export function GlobeScene({
     globeGroup.add(markerGroup);
     markerGroupRef.current = markerGroup;
 
-    addCountryBorders(borderGroup, COUNTRY_BORDERS);
+    addCountryBorders(
+      borderGroup,
+      COUNTRY_BORDERS,
+      getGlobeThemeColors(config.globeColor),
+    );
 
     function resize() {
       const width = sceneContainer.clientWidth || window.innerWidth;
@@ -835,9 +908,24 @@ export function GlobeScene({
         const labelVisible = showLabelsRef.current && isFrontFacing;
         markerVisual.element.style.opacity = labelVisible ? '1' : '0';
         markerVisual.element.style.visibility = labelVisible ? 'visible' : 'hidden';
-        markerVisual.element.style.transform = `translate3d(${
-          (projectedLabelPosition.x * 0.5 + 0.5) * rendererSize.x
-        }px, ${(-projectedLabelPosition.y * 0.5 + 0.5) * rendererSize.y}px, 0)`;
+
+        if (!labelVisible) {
+          continue;
+        }
+
+        const x = (projectedLabelPosition.x * 0.5 + 0.5) * rendererSize.x;
+        const y = (-projectedLabelPosition.y * 0.5 + 0.5) * rendererSize.y;
+
+        markerVisual.element.style.left = `${x}px`;
+        markerVisual.element.style.top = `${y}px`;
+        markerVisual.element.style.setProperty(
+          '--marker-label-offset-x',
+          `${markerVisual.labelOffsetX ?? 0}px`,
+        );
+        markerVisual.element.style.setProperty(
+          '--marker-label-offset-y',
+          `${markerVisual.labelOffsetY ?? 0}px`,
+        );
       }
 
       renderer.render(scene, camera);
@@ -858,6 +946,7 @@ export function GlobeScene({
       disposeGroup(borderGroup);
       disposeGroup(activeCountryBorderGroup);
       fillGroupRef.current = null;
+      borderGroupRef.current = null;
       activeCountryBorderGroupRef.current = null;
       sceneContainer.removeChild(renderer.domElement);
     };
@@ -865,12 +954,14 @@ export function GlobeScene({
 
   useEffect(() => {
     const fillGroup = fillGroupRef.current;
+    const borderGroup = borderGroupRef.current;
     const activeCountryBorderGroup = activeCountryBorderGroupRef.current;
 
-    if (!fillGroup || !activeCountryBorderGroup) {
+    if (!fillGroup || !borderGroup || !activeCountryBorderGroup) {
       return;
     }
 
+    const themeColors = getGlobeThemeColors(config.globeColor);
     const highlightedCountryKeys = new Set<string>();
 
     for (const checkIn of checkIns) {
@@ -884,13 +975,16 @@ export function GlobeScene({
       }
     }
 
+    disposeGroup(borderGroup);
+    borderGroup.clear();
+    addCountryBorders(borderGroup, COUNTRY_BORDERS, themeColors);
     disposeGroup(fillGroup);
     fillGroup.clear();
-    addCountryFills(fillGroup, highlightedCountryKeys);
+    addCountryFills(fillGroup, highlightedCountryKeys, themeColors);
     disposeGroup(activeCountryBorderGroup);
     activeCountryBorderGroup.clear();
-    addActiveCountryBorders(activeCountryBorderGroup, highlightedCountryKeys);
-  }, [checkIns]);
+    addActiveCountryBorders(activeCountryBorderGroup, highlightedCountryKeys, themeColors);
+  }, [checkIns, config.globeColor]);
 
   useEffect(() => {
     const globeGroup = globeGroupRef.current;
@@ -951,9 +1045,10 @@ export function GlobeScene({
     markerVisualsRef.current.forEach((visual) => visual.element?.remove());
     markerVisualsRef.current = [];
 
+    const themeColors = getGlobeThemeColors(config.globeColor);
     const markerMaterial = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      emissive: 0xffffff,
+      color: themeColors.marker,
+      emissive: themeColors.marker,
       emissiveIntensity: 0.45,
       roughness: 0.35,
     });
@@ -961,7 +1056,7 @@ export function GlobeScene({
     const markerStemGeometry = new THREE.CylinderGeometry(0.0015, 0.003, 0.1, 10);
 
     for (const lightSpot of buildLightSpots(checkIns)) {
-      const spotLight = createSpotLightSprite(lightSpot.count);
+      const spotLight = createSpotLightSprite(lightSpot.count, themeColors);
       const surfacePosition = latLonToVector(
         lightSpot.latitude,
         lightSpot.longitude,
@@ -973,6 +1068,33 @@ export function GlobeScene({
         objects: [spotLight],
         surfacePosition,
       });
+    }
+
+    const checkInsByLocation = new Map<string, GlobeCheckIn[]>();
+
+    for (const checkIn of checkIns) {
+      const locationKey = getLocationClusterKey(checkIn);
+      const locationCheckIns = checkInsByLocation.get(locationKey);
+
+      if (locationCheckIns) {
+        locationCheckIns.push(checkIn);
+      } else {
+        checkInsByLocation.set(locationKey, [checkIn]);
+      }
+    }
+
+    const labelOffsetsByViewer = new Map<string, { x: number; y: number }>();
+
+    for (const locationCheckIns of checkInsByLocation.values()) {
+      locationCheckIns
+        .slice()
+        .sort(
+          (left, right) =>
+            left.viewerName.localeCompare(right.viewerName) || left.updatedAt - right.updatedAt,
+        )
+        .forEach((checkIn, index, cluster) => {
+          labelOffsetsByViewer.set(checkIn.id, getMarkerOffset(index, cluster.length));
+        });
     }
 
     for (const checkIn of checkIns) {
@@ -995,8 +1117,11 @@ export function GlobeScene({
       label.className = 'globe-marker-label';
       label.textContent = checkIn.viewerName;
       container.appendChild(label);
+      const labelOffset = labelOffsetsByViewer.get(checkIn.id) ?? { x: 0, y: 0 };
       markerVisualsRef.current.push({
         element: label,
+        labelOffsetX: labelOffset.x,
+        labelOffsetY: labelOffset.y,
         labelPosition,
         objects: [marker, stem],
         surfacePosition,
@@ -1013,7 +1138,7 @@ export function GlobeScene({
       markerStemGeometry.dispose();
       markerMaterial.dispose();
     };
-  }, [checkIns]);
+  }, [checkIns, config.globeColor]);
 
   return (
     <div ref={containerRef} className={`globe-canvas ${className}`.trim()}>
@@ -1032,6 +1157,10 @@ function upsertCheckIn(checkIns: GlobeCheckIn[], nextCheckIn: GlobeCheckIn): Glo
   return [nextCheckIn, ...withoutExisting].sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
+function getCheckInFocusKey(checkIn: GlobeCheckIn): string {
+  return `${checkIn.viewerName.toLowerCase()}|${checkIn.updatedAt}`;
+}
+
 export function GlobeOverlayPage() {
   const config = useMemo(() => parseGlobeConfig(window.location.search), []);
   const isLocalRuntime =
@@ -1044,6 +1173,8 @@ export function GlobeOverlayPage() {
   const [status, setStatus] = useState('Starting globe');
   const checkInsRef = useRef<GlobeCheckIn[]>([]);
   const focusCheckInRef = useRef<typeof focusCheckIn>(null);
+  const focusQueueRef = useRef<GlobeCheckIn[]>([]);
+  const queuedFocusKeysRef = useRef(new Set<string>());
   const pendingLocationsRef = useRef(new Set<string>());
   const focusRequestIdRef = useRef(0);
 
@@ -1055,12 +1186,7 @@ export function GlobeOverlayPage() {
     focusCheckInRef.current = focusCheckIn;
   }, [focusCheckIn]);
 
-  function focusExistingCheckIn(checkIn: GlobeCheckIn) {
-    if (!config.animateCheckIns) {
-      setCheckIns((current) => upsertCheckIn(current, checkIn));
-      return;
-    }
-
+  function startFocusCheckIn(checkIn: GlobeCheckIn) {
     focusRequestIdRef.current += 1;
     setFocusCheckIn({
       checkIn,
@@ -1068,13 +1194,76 @@ export function GlobeOverlayPage() {
     });
   }
 
+  function focusExistingCheckIn(checkIn: GlobeCheckIn) {
+    if (!config.animateCheckIns) {
+      setCheckIns((current) => upsertCheckIn(current, checkIn));
+      return;
+    }
+
+    const focusKey = getCheckInFocusKey(checkIn);
+    const currentFocus = focusCheckInRef.current;
+
+    if (currentFocus && getCheckInFocusKey(currentFocus.checkIn) === focusKey) {
+      return;
+    }
+
+    if (queuedFocusKeysRef.current.has(focusKey)) {
+      return;
+    }
+
+    if (currentFocus) {
+      queuedFocusKeysRef.current.add(focusKey);
+      focusQueueRef.current.push(checkIn);
+      return;
+    }
+
+    startFocusCheckIn(checkIn);
+  }
+
+  function clearFocusQueue() {
+    focusQueueRef.current = [];
+    queuedFocusKeysRef.current.clear();
+  }
+
+  function advanceFocusQueue(completedCheckIn: GlobeCheckIn) {
+    const completedFocusKey = getCheckInFocusKey(completedCheckIn);
+    queuedFocusKeysRef.current.delete(completedFocusKey);
+
+    while (focusQueueRef.current.length > 0) {
+      const nextCheckIn = focusQueueRef.current.shift();
+
+      if (!nextCheckIn) {
+        continue;
+      }
+
+      const nextFocusKey = getCheckInFocusKey(nextCheckIn);
+      queuedFocusKeysRef.current.delete(nextFocusKey);
+
+      if (completedFocusKey === nextFocusKey) {
+        continue;
+      }
+
+      startFocusCheckIn(nextCheckIn);
+      return;
+    }
+
+    setFocusCheckIn((current) =>
+      current?.checkIn.id === completedCheckIn.id &&
+      current.checkIn.updatedAt === completedCheckIn.updatedAt
+        ? null
+        : current,
+    );
+  }
+
   useEffect(() => {
     if (!config.animateCheckIns) {
+      clearFocusQueue();
       setFocusCheckIn(null);
     }
   }, [config.animateCheckIns]);
 
   function resetGlobeSession() {
+    clearFocusQueue();
     setFocusCheckIn(null);
     setCheckIns([]);
     pendingLocationsRef.current.clear();
@@ -1121,20 +1310,27 @@ export function GlobeOverlayPage() {
             checkIn,
           ]),
         );
-        const changedCheckIn = loadedCheckIns.find((checkIn) => {
+        const changedCheckIns = loadedCheckIns.filter((checkIn) => {
           const current = currentByViewer.get(checkIn.viewerName.toLowerCase());
           return !current || current.updatedAt < checkIn.updatedAt;
         });
 
-        if (changedCheckIn && config.animateCheckIns) {
+        if (changedCheckIns.length > 0 && config.animateCheckIns) {
+          const changedViewerKeys = new Set(
+            changedCheckIns.map((checkIn) => checkIn.viewerName.toLowerCase()),
+          );
           setCheckIns(
             loadedCheckIns.filter(
-              (checkIn) =>
-                checkIn.viewerName.toLowerCase() !==
-                changedCheckIn.viewerName.toLowerCase(),
+              (checkIn) => !changedViewerKeys.has(checkIn.viewerName.toLowerCase()),
             ),
           );
-          focusExistingCheckIn(changedCheckIn);
+
+          changedCheckIns
+            .slice()
+            .sort((left, right) => left.updatedAt - right.updatedAt)
+            .forEach((checkIn) => {
+              focusExistingCheckIn(checkIn);
+            });
           return;
         }
 
@@ -1221,12 +1417,7 @@ export function GlobeOverlayPage() {
           setCheckIns((current) => upsertCheckIn(current, checkIn));
         }}
         onFocusComplete={(checkIn) => {
-          setFocusCheckIn((current) =>
-            current?.checkIn.id === checkIn.id &&
-            current.checkIn.updatedAt === checkIn.updatedAt
-              ? null
-              : current,
-          );
+          advanceFocusQueue(checkIn);
         }}
       />
       <span className="sr-only">{status}</span>
